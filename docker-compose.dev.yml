@@ -1,0 +1,12 @@
+services:
+  quizly-api-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - '3000:3000'
+    environment:
+      - PORT=3000
+      - NODE_MODE=development
+    volumes:
+      - ./src:/app/src

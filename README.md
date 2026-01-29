@@ -1,1 +1,55 @@
-# Meduzzen-quizly-backend
+# Quizly: Quiz Platform
+
+## Installation & Setup
+
+Clone the repository
+
+```bash
+git clone https://github.com/KurenkovMaxgit/Meduzzen-quizly-backend.git
+```
+
+Navigate to the project directory
+
+```bash
+cd Meduzzen-quizly-backend
+```
+
+Install dependencies
+
+```bash
+npm install
+```
+
+Configure environment variables and edit with your configuration
+
+```bash
+cp .env.example .env
+```
+
+Start development server
+
+```bash
+npm run dev
+```
+
+## Testing
+
+Run tests
+
+```bash
+npm run test
+```
+
+## Testing within Docker
+
+Ensure the application stack is running
+
+```bash
+docker-compose -f docker-compose.dev.yml up -d
+```
+
+Execute the test suite inside the app container
+
+```bash
+docker-compose -f docker-compose.dev.yml exec quizly-api-dev npm run test
+```

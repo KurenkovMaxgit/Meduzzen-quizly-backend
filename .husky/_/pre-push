@@ -1,0 +1,21 @@
+#!/usr/bin/env sh
+. "$(dirname "$0")/h"
+
+echo "pre-push: running repo checks (format, lint, types, tests)..."
+
+echo "Checking formatting..."
+if ! npm run format:diff; then
+  echo "Formatting issues found."
+  echo "Run: npm run format && git add . && git commit -m \"style: format\""
+  echo "Then push again."
+  exit 1
+fi
+echo "Successfully."
+
+echo "Linting project..."
+npm run lint
+echo "Successfully."
+
+echo "Typescript typecheck (no emit)..."
+npm run typecheck
+echo "Successfully."
