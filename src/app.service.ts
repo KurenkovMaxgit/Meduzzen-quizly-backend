@@ -2,9 +2,8 @@ import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class AppService {
-  healthCheck() {
+  healthCheck(): { detail: string; result: string } {
     return {
-      status_code: 200,
       detail: 'ok',
       result: 'working',
     };
