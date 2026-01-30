@@ -2,14 +2,19 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
+import { Logger } from '@nestjs/common';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: ['error', 'warn', 'log'],
+  });
+
+  const logger = new Logger();
 
   const configService = app.get(ConfigService);
-  const client = configService.getOrThrow<string>('client')
+  const client = configService.getOrThrow<string>('client');
 
-  app.setGlobalPrefix('api'); 
+  app.setGlobalPrefix('api');
 
   app.enableCors({ origin: client, credentials: true });
 
@@ -23,10 +28,11 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api-docs', app, document);
 
-  const port = configService.getOrThrow<string>('port')
+  const port = configService.getOrThrow<string>('port');
   await app.listen(port, () => {
-    // eslint-disable-next-line no-console
-    console.log(`Running app in MODE: ${configService.getOrThrow<string>('nodeEnv')} on PORT: ${port}`);
+    logger.log(
+      `Running app in MODE: ${configService.getOrThrow<string>('nodeEnv')} on PORT: ${port}`,
+    );
   });
 }
 

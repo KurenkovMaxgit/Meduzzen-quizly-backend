@@ -1,0 +1,11 @@
+Dockerfile
+Docker_compose
+node_modules
+.git
+.gitignore
+.env
+.env.example
+*.md
+dist/
+.husky/
+.prettierrc
