@@ -1,12 +1,50 @@
 services:
-  quizly-api-dev:
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
+  postgres-dev:
+    image: postgres:18
+    container_name: postgres_dev_container
+    env_file:
+      - ./.env
     ports:
-      - '3000:3000'
-    environment:
-      - PORT=3000
-      - NODE_MODE=development
+      - '${POSTGRES_PORT}:5432'
     volumes:
-      - ./src:/app/src
+      - ./pgdata/dev:/var/lib/postgresql/data/pgdata
+  pgAdmin:
+    image: dpage/pgadmin4:9.8
+    ports:
+      - 5050:80
+    environment:
+      PGADMIN_DEFAULT_EMAIL: demo@example.com
+      PGADMIN_DEFAULT_PASSWORD: secret
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+    configs:
+      - source: pgadmin-pgpass
+        target: /config/pgpass
+        uid: '5050'
+        gid: '5050'
+        mode: 0400
+      - source: pgadmin-servers
+        target: /pgadmin4/servers.json
+        mode: 0444
+configs:
+  pgadmin-pgpass:
+    content: |
+      postgres:5432:*:${POSTGRES_USER}:${POSTGRES_PASSWORD}
+  pgadmin-servers:
+    content: |
+      {
+        "Servers": {
+          "1": {
+            "Name": "Quizly Development DB",
+            "Group": "Servers",
+            "Host": "postgres",
+            "Port": 5432,
+            "MaintenanceDB": "${POSTGRES_DB}",
+            "Username": "${POSTGRES_USER}",
+            "PassFile": "/config/pgpass"
+          }
+        }
+      }
+volumes:
+  pgdata:
+    driver: local
