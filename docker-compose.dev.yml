@@ -29,7 +29,7 @@ services:
 configs:
   pgadmin-pgpass:
     content: |
-      postgres:5432:*:${POSTGRES_USER}:${POSTGRES_PASSWORD}
+      postgres-dev:5432:*:${POSTGRES_USER}:${POSTGRES_PASSWORD}
   pgadmin-servers:
     content: |
       {
@@ -37,7 +37,7 @@ configs:
           "1": {
             "Name": "Quizly Development DB",
             "Group": "Servers",
-            "Host": "postgres",
+            "Host": "postgres-dev",
             "Port": 5432,
             "MaintenanceDB": "${POSTGRES_DB}",
             "Username": "${POSTGRES_USER}",
