@@ -4,9 +4,20 @@ services:
       context: .
       dockerfile: Dockerfile.prod
     ports:
-      - '8080:8080'
-    environment:
-      - PORT=8080
-      - NODE_MODE=production
+      - '${PORT}:8080'
+    env_file:
+      - ./.env.production.local
     volumes:
       - ./src:/app/src
+  postgres-prod:
+    image: postgres:18
+    container_name: postgres_prod_container
+    env_file:
+      - ./.env.production.local
+    ports:
+      - '8728:5432'
+    volumes:
+      - ./pgdata/prod:/var/lib/postgresql/data/pgdata
+volumes:
+  pgdata:
+    driver: local
