@@ -1,9 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DeleteResult, QueryDeepPartialEntity, Repository } from 'typeorm';
+import { DeleteResult, Repository } from 'typeorm';
 import { User } from '../common/entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
-import { FindAllUsersQueryDto } from './dto/find-all-users.dto';
+import { FindAllUsersDto, FindUserDto } from './dto/find-user.dto';
 import * as bcrypt from 'bcrypt';
 import { ReturnUserDto } from './dto/return-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -21,14 +21,13 @@ export class UserService {
     const user = await this.usersRepository.save({
       ...data,
       passwordHash: hash,
-      refreshToken: 'HULUMULU256', // TODO: add refresh token generating/passing when implementing auth flow
     });
     const { password, passwordHash, refreshToken, ...rest } = user;
 
     return { ...rest } as ReturnUserDto;
   }
 
-  async findAll(query: FindAllUsersQueryDto): Promise<PaginatedData<User>> {
+  async findAll(query: FindAllUsersDto): Promise<PaginatedData<User>> {
     const finalWhere = {
       ...query.where,
       ...query.search,
@@ -43,35 +42,36 @@ export class UserService {
     return { items: users, totalCount };
   }
 
-  async findOneById(id: string): Promise<User> {
-    const user = await this.usersRepository.findOneBy({ id });
+  async findOneBy(where: FindUserDto): Promise<User> {
+    const user = await this.usersRepository.findOneBy({ ...where });
     if (!user) {
-      throw new NotFoundException(`User with ID ${id} not found`);
+      throw new NotFoundException(`User with fields ${JSON.stringify({ ...where })} not found`);
     }
     return user;
   }
 
-  async updateById(id: string, data: UpdateUserDto): Promise<User | null> {
+
+  async updateBy(where: FindUserDto, data: UpdateUserDto): Promise<User | null> {
     const { password, ...params } = data;
-    const updatePayload: QueryDeepPartialEntity<User> = { ...params };
+    const updatePayload: Partial<User> = { ...params };
 
     if (password) {
       updatePayload.passwordHash = await bcrypt.hash(password, 10);
     }
 
-    const result = await this.usersRepository.update({ id }, updatePayload);
+    const result = await this.usersRepository.update(where, updatePayload);
 
     if (result.affected === 0) {
-      throw new NotFoundException(`User with ID ${id} not found`);
+      throw new NotFoundException(`User with fields ${JSON.stringify({ ...where })} not found`);
     }
-    return await this.usersRepository.findOneBy({ id });
+    return await this.usersRepository.findOneBy({ ...where });
   }
 
-  async deleteById(id: string): Promise<DeleteResult> {
-    const result = await this.usersRepository.delete(id);
+  async deleteBy(where: FindUserDto): Promise<DeleteResult> {
+    const result = await this.usersRepository.delete({ ...where });
 
     if (result.affected === 0) {
-      throw new NotFoundException(`User with ID ${id} not found`);
+      throw new NotFoundException(`User with fields ${JSON.stringify({ ...where })} not found`);
     }
 
     return result;

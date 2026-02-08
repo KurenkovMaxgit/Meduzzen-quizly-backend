@@ -5,7 +5,7 @@ import { UserService } from './user.service';
 import { User } from '../common/entities/user.entity';
 import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from './dto/create-user.dto';
-import { FindAllUsersQueryDto } from './dto/find-all-users.dto';
+import { FindAllUsersDto } from './dto/find-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserRole } from '../utils/enums';
 import { mockUserRepository, mockUser } from '../mock/user-tests.mock';
@@ -53,7 +53,6 @@ describe('UserService', () => {
         ...mockUser,
         ...createUserDto,
         passwordHash: 'hashed_password',
-        refreshToken: 'HULUMULU256',
       });
 
       const result = await service.create(createUserDto);
@@ -62,7 +61,6 @@ describe('UserService', () => {
       expect(mockUserRepository.save).toHaveBeenCalledWith({
         ...createUserDto,
         passwordHash: 'hashed_password',
-        refreshToken: 'HULUMULU256',
       });
       expect(result).not.toHaveProperty('password');
       expect(result).not.toHaveProperty('passwordHash');
@@ -73,7 +71,7 @@ describe('UserService', () => {
 
   describe('findAll', () => {
     it('should return paginated data and merge search/where values', async () => {
-      const query: FindAllUsersQueryDto = {
+      const query: FindAllUsersDto = {
         take: 10,
         skip: 0,
         order: { createdAt: 'DESC' },
@@ -100,21 +98,21 @@ describe('UserService', () => {
     });
   });
 
-  describe('findOneById', () => {
+  describe('findOne', () => {
     it('should return a user if found', async () => {
       mockUserRepository.findOneBy.mockResolvedValue(mockUser);
-      const result = await service.findOneById('uuid-example');
+      const result = await service.findOneBy({ id: 'uuid-example' });
       expect(mockUserRepository.findOneBy).toHaveBeenCalledWith({ id: 'uuid-example' });
       expect(result).toEqual(mockUser);
     });
 
     it('should throw NotFoundException if user is not found', async () => {
       mockUserRepository.findOneBy.mockResolvedValue(null);
-      await expect(service.findOneById('uuid-999')).rejects.toThrow(NotFoundException);
+      await expect(service.findOneBy({ id: 'uuid-999' })).rejects.toThrow(NotFoundException);
     });
   });
 
-  describe('updateById', () => {
+  describe('updateBy', () => {
     const mockUser = {
       id: 'uuid-example',
       firstName: 'Jane',
@@ -129,7 +127,7 @@ describe('UserService', () => {
       mockUserRepository.update.mockResolvedValue(updateResult);
       mockUserRepository.findOneBy.mockResolvedValue(mockUser);
 
-      const result = await service.updateById('uuid-example', updateUserDto);
+      const result = await service.updateBy({ id: 'uuid-example' }, updateUserDto);
 
       expect(bcrypt.hash).not.toHaveBeenCalled();
       expect(mockUserRepository.update).toHaveBeenCalledWith(
@@ -148,7 +146,7 @@ describe('UserService', () => {
       mockUserRepository.update.mockResolvedValue(updateResult);
       mockUserRepository.findOneBy.mockResolvedValue(mockUser);
 
-      const result = await service.updateById('uuid-example', updateUserDto);
+      const result = await service.updateBy({ id: 'uuid-example' }, updateUserDto);
 
       expect(bcrypt.hash).toHaveBeenCalledWith('newPassword123', 10);
 
@@ -170,7 +168,7 @@ describe('UserService', () => {
 
       mockUserRepository.update.mockResolvedValue(updateResult);
 
-      await expect(service.updateById('uuid-example', updateUserDto)).rejects.toThrow(
+      await expect(service.updateBy({ id: 'uuid-example' }, updateUserDto)).rejects.toThrow(
         NotFoundException,
       );
 
@@ -178,14 +176,14 @@ describe('UserService', () => {
     });
   });
 
-  describe('deleteById', () => {
+  describe('deleteBy', () => {
     it('should delete a user by id', async () => {
       const deleteResult: DeleteResult = { raw: [], affected: 1 };
       mockUserRepository.delete.mockResolvedValue(deleteResult);
 
-      const result = await service.deleteById('uuid-example');
+      const result = await service.deleteBy({ id: 'uuid-example' });
 
-      expect(mockUserRepository.delete).toHaveBeenCalledWith('uuid-example');
+      expect(mockUserRepository.delete).toHaveBeenCalledWith({ id: 'uuid-example' });
       expect(result).toEqual(deleteResult);
     });
   });

@@ -2,7 +2,7 @@ import { Length, IsEmail, IsEnum, IsUUID, IsDate } from 'class-validator';
 import { UserRole } from '../../utils/enums';
 import { FilterDto } from '../../common/dto/find-all-query.dto';
 
-export class FindAllUsersDto {
+export class FindUserDto {
   @IsUUID()
   id?: string;
 
@@ -26,4 +26,4 @@ export class FindAllUsersDto {
   updatedAt?: Date;
 }
 
-export class FindAllUsersQueryDto extends FilterDto(FindAllUsersDto) {}
+export class FindAllUsersDto extends FilterDto(FindUserDto) {}
