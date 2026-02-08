@@ -13,6 +13,7 @@ import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { FindAllUsersQueryDto } from './dto/find-all-users.dto';
 import { ParseQueryPipe } from '../common/pipes/parse-query/parse-query.pipe';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Controller('user')
 export class UserController {
@@ -36,7 +37,7 @@ export class UserController {
   }
 
   @Patch(':id')
-  async updateOne(@Param('id', ParseUUIDPipe) id: string, @Body() data: CreateUserDto) {
+  async updateOne(@Param('id', ParseUUIDPipe) id: string, @Body() data: UpdateUserDto) {
     return await this.userService.updateById(id, data);
   }
 
