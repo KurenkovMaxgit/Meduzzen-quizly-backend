@@ -1,20 +1,24 @@
-import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
+import { Entity, Column } from 'typeorm';
 import { UserRole } from '../../utils/enums';
+import { BaseEntity } from './base.entity';
 
 @Entity()
-export class User {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+export class User extends BaseEntity {
+  @Column('varchar', { length: 250 })
+  firstName!: string;
 
-  @Column()
-  firstName: string;
+  @Column('varchar', { length: 250 })
+  lastName!: string;
 
-  @Column()
-  lastName: string;
+  @Column('varchar', { length: 255, unique: true })
+  email!: string;
+
+  @Column('varchar', { length: 255, select: false })
+  passwordHash!: string;
 
   @Column({ type: 'enum', enum: UserRole, default: UserRole.CANDIDATE })
-  role: UserRole;
+  role!: UserRole;
 
-  @Column()
-  refreshToken: string;
+  @Column('varchar', { length: 255, select: false, nullable: true })
+  refreshToken!: string;
 }
