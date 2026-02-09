@@ -1,5 +1,5 @@
 import { Type } from '@nestjs/common';
-import { IsOptional, ValidateNested } from 'class-validator';
+import { IsOptional, IsString, ValidateNested } from 'class-validator';
 import { Type as ClassTransformerType } from 'class-transformer';
 import { IsInt, Min } from 'class-validator';
 
@@ -7,18 +7,18 @@ export interface FindAllQuery<T> {
   skip?: number;
   take?: number;
   where?: T;
-  search?: T;
+  search?: string;
   order?: {
-    [field in keyof T]?: 'ASC' | 'DESC' | 'asc' | 'desc' | 1 | -1;
+    [field in keyof T]?: 'ASC' | 'DESC';
   };
 }
 
 /**
- * Creates generic query parameters type refering to passed entity fields
- * 
+ * Creates generic query parameters type referring to passed entity fields
+ *
  * Example: for User entity query parameters can get value like: where = {"email": "example@email.com"}
- * @param classRef 
- * @returns
+ * @param classRef Entity return dto
+ * @returns Class with `FindAllQuery` fields for passed dto
  */
 export function FilterDto<T>(classRef: Type<T>): Type<FindAllQuery<T>> {
   class GenericFindAllQuery implements FindAllQuery<T> {
@@ -38,9 +38,8 @@ export function FilterDto<T>(classRef: Type<T>): Type<FindAllQuery<T>> {
     where?: T;
 
     @IsOptional()
-    @ValidateNested()
-    @ClassTransformerType(() => classRef)
-    search?: T;
+    @IsString()
+    search?: string;
 
     @IsOptional()
     @ValidateNested()
