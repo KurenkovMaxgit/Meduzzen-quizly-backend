@@ -1,3 +1,4 @@
+name: quizly-production-api
 services:
   quizly-api-prod:
     build:
@@ -15,7 +16,7 @@ services:
     env_file:
       - ./.env.production.local
     ports:
-      - '8728:5432'
+      - '${POSTGRES_PORT}:5432'
     volumes:
       - ./pgdata/prod:/var/lib/postgresql/data/pgdata
 volumes:

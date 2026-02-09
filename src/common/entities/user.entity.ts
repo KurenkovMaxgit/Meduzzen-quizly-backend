@@ -19,6 +19,6 @@ export class User extends BaseEntity {
   @Column({ type: 'enum', enum: UserRole, default: UserRole.CANDIDATE })
   role!: UserRole;
 
-  @Column('varchar', { length: 255, select: false, nullable: true })
-  refreshToken!: string;
+  @Column('varchar', { length: 255, select: false, default: null, nullable: true })
+  refreshToken!: string | null;
 }

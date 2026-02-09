@@ -12,4 +12,4 @@ export interface PaginatedData<T> {
   totalCount: number;
 }
 
-export type GetListResponse<T> = ApiResponse<PaginatedData<T>>
+export type GetListResponse<T> = ApiResponse<PaginatedData<T>>;

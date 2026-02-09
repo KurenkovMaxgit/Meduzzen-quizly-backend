@@ -1,0 +1,11 @@
+name: quizly-test-db
+services:
+  postgres-test:
+    image: postgres:18
+    container_name: postgres_test_container
+    env_file:
+      - ./.env.test
+    ports:
+      - '${POSTGRES_PORT}:5432'
+    tmpfs:
+      - /var/lib/postgresql/data/pgdata
