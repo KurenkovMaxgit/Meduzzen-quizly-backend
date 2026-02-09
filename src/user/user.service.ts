@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DeleteResult, Repository } from 'typeorm';
+import { Brackets, DeleteResult, Repository } from 'typeorm';
 import { User } from '../common/entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { FindAllUsersDto, FindUserDto } from './dto/find-user.dto';
@@ -28,18 +28,38 @@ export class UserService {
   }
 
   async findAll(query: FindAllUsersDto): Promise<PaginatedData<User>> {
-    const finalWhere = {
-      ...query.where,
-      ...query.search,
-    };
-    const users = await this.usersRepository.find({
-      where: finalWhere,
-      take: query.take,
-      skip: query.skip,
-      order: query.order,
-    });
-    const totalCount = await this.usersRepository.count({ where: finalWhere });
-    return { items: users, totalCount };
+    const searchableFields = ['firstName', 'lastName', 'email'];
+    const qb = this.usersRepository.createQueryBuilder('user');
+
+    if (query.where) {
+      Object.keys(query.where).forEach((key) => {
+        qb.andWhere(`user.${key} = :${key}`, {
+          [key]: (query.where as Record<string, unknown>)[key],
+        });
+      });
+    }
+    if (query.search) {
+      qb.andWhere(
+        new Brackets((subQb) => {
+          searchableFields.forEach((field) => {
+            subQb.orWhere(`user.${field} ILIKE :search`, { search: `%${query.search}%` });
+          });
+        }),
+      );
+    }
+
+    if (query.order) {
+      Object.keys(query.order).forEach((key) => {
+        qb.addOrderBy(`user.${key}`, query.order![key] as 'ASC' | 'DESC');
+      });
+    }
+
+    qb.take(query.take);
+    qb.skip(query.skip);
+
+    const [items, totalCount] = await qb.getManyAndCount();
+
+    return { items, totalCount };
   }
 
   async findOneBy(where: FindUserDto): Promise<User> {
@@ -49,7 +69,6 @@ export class UserService {
     }
     return user;
   }
-
 
   async updateBy(where: FindUserDto, data: UpdateUserDto): Promise<User | null> {
     const { password, ...params } = data;
