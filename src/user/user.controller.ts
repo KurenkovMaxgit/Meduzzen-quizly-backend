@@ -1,20 +1,24 @@
 import {
   Body,
+  ClassSerializerInterceptor,
   Controller,
   Delete,
   Get,
   Param,
   ParseUUIDPipe,
   Patch,
-  Post,
   Query,
+  UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { UserService } from './user.service';
-import { CreateUserDto } from './dto/create-user.dto';
-import { FindAllUsersDto } from './dto/find-user.dto';
-import { ParseQueryPipe } from '../common/pipes/parse-query/parse-query.pipe';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/guards/auth-jwt.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { User } from '../common/entities/user.entity';
+import { ReturnUserDto } from './dto/return-user.dto';
+import { FindAllUsersDto } from './dto/find-user.dto';
 
 @ApiTags('Users')
 @ApiBearerAuth()
@@ -22,7 +26,13 @@ import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagg
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @Get()
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(ClassSerializerInterceptor)
+  @Get('me')
+  findProfile(@CurrentUser() user: User) {
+    return new ReturnUserDto(user);
+  }
+
   @ApiOperation({
     summary: 'Get all users by query parameters',
     description:
@@ -32,11 +42,12 @@ export class UserController {
   })
   @ApiResponse({ status: 200, description: 'Success.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
-  async findAll(@Query(new ParseQueryPipe()) query: FindAllUsersDto) {
+  @UseGuards(JwtAuthGuard)
+  @Get()
+  async findAll(@Query() query: FindAllUsersDto) {
     return await this.userService.findAll(query);
   }
 
-  @Get(':id')
   @ApiOperation({
     summary: 'Get one user by id',
     description: 'Returns one user that match id passed in URL parameter.',
@@ -44,50 +55,37 @@ export class UserController {
   @ApiResponse({ status: 200, description: 'Success.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 404, description: 'Not found.' })
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(ClassSerializerInterceptor)
+  @Get(':id')
   async findOneById(@Param('id', ParseUUIDPipe) id: string) {
-    return await this.userService.findOneBy({ id });
-  }
-
-  // Left this POST here just for complete User CRUD routes testing & demonstration
-  // TODO: rewrite when implementing signing up flow
-  @Post()
-  @ApiOperation({
-    summary: 'Create new user',
-    description:
-      'Creates a new user with payload passed in body.\n\
-      \n**_NOTE:_** All users must have unique emails.',
-  })
-  @ApiResponse({ status: 201, description: 'Created.' })
-  @ApiResponse({ status: 400, description: 'Bad request.' })
-  @ApiResponse({ status: 404, description: 'Not found.' })
-  @ApiResponse({ status: 409, description: 'Database conflict: Duplicate entry.' })
-  async createOne(@Body() data: CreateUserDto) {
-    return await this.userService.create(data);
+    const user = await this.userService.findOneBy({ id });
+    return user ? new ReturnUserDto(user) : user;
   }
 
   @ApiOperation({
-    summary: 'Update user by id',
-    description:
-      'Updates user by id passed in URL parameter with payload passed in body.\n\
-      \n**_NOTE:_** Email update is unavailable.',
+    summary: 'Update authenticated user',
+    description: '**_NOTE:_** Email update is unavailable.',
   })
   @ApiResponse({ status: 200, description: 'Success.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 404, description: 'Not found.' })
-  @Patch(':id')
-  async updateOneById(@Param('id', ParseUUIDPipe) id: string, @Body() data: UpdateUserDto) {
-    return await this.userService.updateBy({ id }, data);
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(ClassSerializerInterceptor)
+  @Patch()
+  async updateOneById(@CurrentUser('id') id: string, @Body() data: UpdateUserDto) {
+    return new ReturnUserDto(await this.userService.updateBy({ id }, data));
   }
 
   @ApiOperation({
-    summary: 'Delete user by id',
-    description: 'Deletes user by id passed in URL parameter.',
+    summary: 'Deletes authenticated user.',
   })
   @ApiResponse({ status: 200, description: 'Success.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 404, description: 'Not found.' })
-  @Delete(':id')
-  async deleteOneById(@Param('id', ParseUUIDPipe) id: string) {
+  @UseGuards(JwtAuthGuard)
+  @Delete()
+  async deleteOneById(@CurrentUser('id') id: string) {
     return await this.userService.deleteBy({ id });
   }
 }
