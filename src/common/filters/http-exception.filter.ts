@@ -6,6 +6,7 @@ interface HttpExceptionResponse {
   statusCode: number;
   message: string | string[];
   error: string;
+  details?: unknown;
 }
 
 @Catch()
@@ -18,14 +19,21 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const status =
       exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
     let errorMessage: string;
+    let errorDetails: unknown = null;
 
     if (exception instanceof HttpException) {
       const errorResponse = exception.getResponse();
       if (typeof errorResponse === 'string') {
         errorMessage = errorResponse;
       } else {
-        const msg = (errorResponse as HttpExceptionResponse).message;
-        errorMessage = Array.isArray(msg) ? msg.join(', ') : msg;
+        const responseObject = errorResponse as HttpExceptionResponse;
+        errorMessage = Array.isArray(responseObject.message)
+          ? responseObject.message.join(', ')
+          : responseObject.message || responseObject.error || 'Unknown Error';
+
+        if (responseObject.details) {
+          errorDetails = responseObject.details;
+        }
       }
     } else {
       errorMessage = 'Internal server error';
@@ -37,6 +45,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       message: errorMessage,
       timestamp: new Date().toISOString(),
       path: request.url,
+      details: errorDetails,
       data: null,
     };
 
