@@ -13,12 +13,12 @@ export class User extends BaseEntity {
   @Column('varchar', { length: 255, unique: true })
   email!: string;
 
-  @Column('varchar', { length: 255, select: false })
-  passwordHash!: string;
+  @Column('varchar', { length: 255, select: false, nullable: true })
+  passwordHash?: string | null;
 
   @Column({ type: 'enum', enum: UserRole, default: UserRole.CANDIDATE })
   role!: UserRole;
 
   @Column('varchar', { length: 255, select: false, default: null, nullable: true })
-  refreshToken!: string | null;
+  refreshTokenHash?: string | null;
 }
