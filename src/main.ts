@@ -2,10 +2,12 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
-import { Logger } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { TypeOrmExceptionFilter } from './common/filters/typeorm-exception.filter';
+import { validationPipeConfig } from './config/validation-pipe.config';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -21,7 +23,11 @@ async function bootstrap() {
 
   app.enableCors({ origin: client, credentials: true });
 
+  app.use(cookieParser());
+
   app.useGlobalInterceptors(new TransformInterceptor());
+
+  app.useGlobalPipes(new ValidationPipe(validationPipeConfig));
 
   app.useGlobalFilters(new AllExceptionsFilter(), new TypeOrmExceptionFilter());
 
