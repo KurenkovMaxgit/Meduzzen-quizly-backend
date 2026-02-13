@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['eslint.config.mjs', 'dist', '**/dist/**', '**/node_modules/**', 'ai-assistant-lib'],
+    ignores: ['eslint.config.mjs', 'dist', '**/dist/**', '**/node_modules/**'],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
@@ -40,6 +40,15 @@ export default tseslint.config(
           destructuredArrayIgnorePattern: '^_',
           varsIgnorePattern: '^_',
           ignoreRestSiblings: true,
+          overrides: [
+            {
+              files: ['test/**/*.ts', '**/*.spec.ts', '**/*.test.ts'], 
+              rules: {
+                '@typescript-eslint/unbound-method': 'off',
+                'jest/unbound-method': 'error', 
+              },
+            },
+          ]
         },
       ],
       'no-warning-comments': ['warn', { terms: ['todo', 'fixme'], location: 'anywhere' }],

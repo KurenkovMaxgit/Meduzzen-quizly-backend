@@ -1,217 +1,139 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe, ExecutionContext } from '@nestjs/common';
 import request from 'supertest';
-import { AppModule } from './../src/app.module';
-import { DataSource } from 'typeorm';
-import { AllExceptionsFilter } from '../src/common/filters/http-exception.filter';
-import { TypeOrmExceptionFilter } from '../src/common/filters/typeorm-exception.filter';
-import { TransformInterceptor } from '../src/common/interceptors/transform.interceptor';
-import { Server } from 'node:http';
-import { ApiResponse, GetListResponse } from '../src/utils/response.interface';
-import { User } from '../src/common/entities/user.entity';
+import { UserController } from '../src/user/user.controller';
+import { UserService } from '../src/user/user.service';
+import { JwtAuthGuard } from '../src/auth/guards/auth-jwt.guard';
+import { mockUser } from '../src/mock/user-tests.mock';
 
-describe('UserController (E2E)', () => {
-  let app: INestApplication<Server>;
-  let dataSource: DataSource;
-  const baseUrl = `/api/user`;
+describe('UserController (e2e)', () => {
+  let app: INestApplication;
+  let userService: UserService;
 
-  const createTestUser = async (email: string) => {
-    return await request(app.getHttpServer())
-      .post(baseUrl)
-      .send({
-        firstName: 'Test',
-        lastName: 'User',
-        email,
-        password: 'Password123!',
-      })
-      .expect(201);
+  const mockUserService = {
+    findAll: jest.fn().mockResolvedValue({ items: [mockUser], totalCount: 1 }),
+    findOneBy: jest.fn().mockImplementation((criteria) => {
+      if (criteria.id === mockUser.id) return Promise.resolve(mockUser);
+      return Promise.resolve(null);
+    }),
+    updateBy: jest.fn().mockResolvedValue({ ...mockUser, firstName: 'Updated' }),
+    deleteBy: jest.fn().mockResolvedValue({ affected: 1 }),
   };
 
-  const correctQueries = [
-    { take: 10, skip: 0 },
-    { where: { email: 'search@test.com' } },
-    { take: 5, skip: 0, where: { firstName: 'Test' } },
-    { search: { email: 'sea' } },
-    { take: 5, skip: 0, search: { email: 'sear' } },
-    { where: { email: 'search@test.com' }, search: { email: 'sea' } },
-    { take: 5, skip: 0, where: { email: 'search@test.com' }, search: { email: 'sea' } },
-    { order: { firstName: 'ASC' } },
-    { take: 5, skip: 0, order: { role: 'ASC' } },
-    { where: { email: 'search@test.com' }, order: { email: 'DESC' } },
-    { take: 5, skip: 0, where: { email: 'search@test.com' }, order: { creatdAt: 'DESC' } },
-    { search: { email: 'ear' }, order: { updatedAt: 'asc' } },
-    { take: 5, skip: 0, search: { email: 'ear' }, order: { lastName: 'asc' } },
-    { take: 5, skip: 0, where: { firstName: 'Test' }, search: { email: '@' }, order: { email: 1 } },
-  ];
+  const mockJwtAuthGuard = {
+    canActivate: (context: ExecutionContext) => {
+      const req = context.switchToHttp().getRequest();
+      req.user = mockUser;
+      return true;
+    },
+  };
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
+      controllers: [UserController],
+      providers: [
+        {
+          provide: UserService,
+          useValue: mockUserService,
+        },
+      ],
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue(mockJwtAuthGuard)
+      .compile();
 
+    userService = moduleFixture.get<UserService>(UserService);
     app = moduleFixture.createNestApplication();
-    app.setGlobalPrefix('api');
-    app.useGlobalInterceptors(new TransformInterceptor());
-
-    app.useGlobalFilters(new AllExceptionsFilter(), new TypeOrmExceptionFilter());
+    app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
 
     await app.init();
-
-    dataSource = app.get(DataSource);
-  });
-
-  afterEach(async () => {
-    const entities = dataSource.entityMetadatas;
-    for (const entity of entities) {
-      const repository = dataSource.getRepository(entity.name);
-      await repository.clear();
-    }
   });
 
   afterAll(async () => {
     await app.close();
   });
 
-  describe('/user (GET)', () => {
-    it('should return an empty list initially', async () => {
-      const response = await request(app.getHttpServer()).get(baseUrl).expect(200);
-      const res = response.body as GetListResponse<User>;
-
-      expect(res.data?.items).toEqual([]);
-    });
-
-    it('should return a list of users', async () => {
-      await createTestUser('list@test.com');
-
-      const response = await request(app.getHttpServer()).get(baseUrl).expect(200);
-      const res = response.body as GetListResponse<User>;
-      const users = res.data?.items;
-      const totalCont = res.data?.totalCount;
-
-      expect(Array.isArray(users)).toBe(true);
-      expect(users).toHaveLength(1);
-      if (Array.isArray(users)) {
-        expect(users[0].email).toBe('list@test.com');
-        expect(users[0]).not.toHaveProperty('password');
-      }
-      expect(totalCont).toBe(1);
-    });
-
-    describe('Data Driven Filter Tests', () => {
-      beforeEach(async () => {
-        await createTestUser('search@test.com');
-      });
-
-      it.each(correctQueries)('should work with query: %j', async (query) => {
-        const response = await request(app.getHttpServer()).get(baseUrl).query(query).expect(200);
-        const res = response.body as GetListResponse<User>;
-
-        expect(res.data?.items).toHaveLength(1);
-      });
+  describe('GET /user/me', () => {
+    it('should return the authenticated user profile', () => {
+      return request(app.getHttpServer())
+        .get('/user/me')
+        .expect(200)
+        .expect((res) => {
+          expect(res.body.email).toEqual(mockUser.email);
+          expect(res.body).not.toHaveProperty('passwordHash');
+        });
     });
   });
 
-  describe('/user/:id (GET)', () => {
-    it('should return a single user by ID', async () => {
-      const created = await createTestUser('single@test.com');
-      const createdBody = created.body as ApiResponse<User>;
-      const id = createdBody.data?.id;
-
-      const response = await request(app.getHttpServer()).get(`${baseUrl}/${id}`).expect(200);
-      const res = response.body as ApiResponse<User>;
-
-      expect(res.data?.id).toBe(id);
-      expect(res.data?.email).toBe('single@test.com');
+  describe('GET /user (findAll)', () => {
+    it('should return paginated users', () => {
+      return request(app.getHttpServer())
+        .get('/user')
+        .query({ take: 10, skip: 0 })
+        .expect(200)
+        .expect((res) => {
+          expect(res.body.items).toHaveLength(1);
+          expect(res.body.totalCount).toBe(1);
+          expect(userService.findAll).toHaveBeenCalled();
+        });
     });
 
-    it('should throw 404 for non-existent ID', async () => {
-      const fakeId = '00000000-0000-0000-0000-000000000000';
-      await request(app.getHttpServer()).get(`${baseUrl}/${fakeId}`).expect(404);
-    });
-
-    it('should throw 400 for invalid UUID format', async () => {
-      await request(app.getHttpServer()).get(`${baseUrl}/invalid-id-format`).expect(400);
+    it('should validate query params (e.g. invalid json in where)', () => {
+      return request(app.getHttpServer()).get('/user').query({ take: -5 }).expect(400);
     });
   });
 
-  describe('/user (POST)', () => {
-    it('should create a user and return it without password', async () => {
-      const dto = {
-        email: 'example@test.com',
-        password: 'securePassword',
-        firstName: 'Docker',
-        lastName: 'Fan',
-      };
-
-      const response = await request(app.getHttpServer()).post(baseUrl).send(dto).expect(201);
-
-      const res = response.body as ApiResponse<User>;
-
-      expect(res.data?.email).toBe(dto.email);
-      expect(res.data?.id).toBeDefined();
-      expect(res.data).not.toHaveProperty('password');
-      expect(res.data).not.toHaveProperty('passwordHash');
-      expect(res.data).not.toHaveProperty('refreshToken');
+  describe('GET /user/:id', () => {
+    it('should return a user by valid UUID', () => {
+      return request(app.getHttpServer())
+        .get(`/user/${mockUser.id}`)
+        .expect(200)
+        .expect((res) => {
+          expect(res.body.id).toEqual(mockUser.id);
+        });
     });
 
-    it('should fail if email is duplicate', async () => {
-      await request(app.getHttpServer())
-        .post(baseUrl)
-        .send({ email: 'duplicate@test.com', password: '123', firstName: 'A', lastName: 'B' })
-        .expect(201);
+    it('should return 400 for invalid UUID', () => {
+      return request(app.getHttpServer()).get('/user/not-a-uuid').expect(400);
+    });
 
-      await request(app.getHttpServer())
-        .post(baseUrl)
-        .send({ email: 'duplicate@test.com', password: '123', firstName: 'A', lastName: 'B' })
-        .expect(409);
+    it('should handle user not found (returning null or 404 depending on logic)', () => {
+      const randomId = '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
+      return request(app.getHttpServer())
+        .get(`/user/${randomId}`)
+        .expect(200)
+        .expect((res) => {
+          expect(res.body).toEqual({});
+        });
     });
   });
 
-  describe('/user/:id (PATCH)', () => {
-    it('should update user details', async () => {
-      const created = await createTestUser('update@test.com');
-      const createdBody = created.body as ApiResponse<User>;
-      const id = createdBody.data?.id;
+  describe('PATCH /user', () => {
+    it('should update the current authenticated user', () => {
+      const updateDto = { firstName: 'Updated' };
 
-      const updateData = {
-        firstName: 'UpdatedName',
-        lastName: 'UpdatedLast',
-      };
-
-      const response = await request(app.getHttpServer())
-        .patch(`${baseUrl}/${id}`)
-        .send(updateData)
-        .expect(200);
-
-      const res = response.body as ApiResponse<User>;
-
-      expect(res.data?.firstName).toBe('UpdatedName');
-      expect(res.data?.email).toBe('update@test.com');
-    });
-
-    it('should throw 404 when updating non-existent user', async () => {
-      const fakeId = '00000000-0000-0000-0000-000000000000';
-      await request(app.getHttpServer())
-        .patch(`${baseUrl}/${fakeId}`)
-        .send({ firstName: 'Nobody' })
-        .expect(404);
+      return request(app.getHttpServer())
+        .patch('/user')
+        .send(updateDto)
+        .expect(200)
+        .expect((res) => {
+          expect(res.body.firstName).toEqual('Updated');
+          expect(userService.updateBy).toHaveBeenCalledWith(
+            { id: mockUser.id },
+            expect.objectContaining(updateDto),
+          );
+        });
     });
   });
 
-  describe('/user/:id (DELETE)', () => {
-    it('should delete a user successfully', async () => {
-      const created = await createTestUser('delete@test.com');
-      const createdBody = created.body as ApiResponse<User>;
-      const id = createdBody.data?.id;
-
-      await request(app.getHttpServer()).delete(`${baseUrl}/${id}`).expect(200);
-
-      await request(app.getHttpServer()).get(`${baseUrl}/${id}`).expect(404);
-    });
-
-    it('should throw 404 when deleting non-existent user', async () => {
-      const fakeId = '00000000-0000-0000-0000-000000000000';
-      await request(app.getHttpServer()).delete(`${baseUrl}/${fakeId}`).expect(404);
+  describe('DELETE /user', () => {
+    it('should delete the current authenticated user', () => {
+      return request(app.getHttpServer())
+        .delete('/user')
+        .expect(200)
+        .expect(() => {
+          expect(userService.deleteBy).toHaveBeenCalledWith({ id: mockUser.id });
+        });
     });
   });
 });

@@ -1,26 +1,30 @@
-import { Length, IsEmail, IsEnum, IsUUID, IsDate } from 'class-validator';
+import { Exclude, Expose } from 'class-transformer';
 import { UserRole } from '../../utils/enums';
 
+@Exclude()
 export class ReturnUserDto {
-  @IsUUID()
+  constructor(partial: Partial<ReturnUserDto>) {
+    Object.assign(this, partial);
+  }
+
+  @Expose()
   id!: string;
 
-  @Length(1, 250)
+  @Expose()
   firstName!: string;
 
-  @Length(1, 250)
+  @Expose()
   lastName!: string;
 
-  @Length(1, 255)
-  @IsEmail()
+  @Expose()
   email!: string;
 
-  @IsEnum(UserRole)
+  @Expose()
   role!: UserRole;
 
-  @IsDate()
+  @Expose()
   createdAt!: Date;
 
-  @IsDate()
+  @Expose()
   updatedAt!: Date;
 }

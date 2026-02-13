@@ -1,13 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, DeleteResult, Repository } from 'typeorm';
+import { Brackets, DeepPartial, DeleteResult, FindOneOptions, Repository } from 'typeorm';
 import { User } from '../common/entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
-import { FindAllUsersDto, FindUserDto } from './dto/find-user.dto';
 import * as bcrypt from 'bcrypt';
-import { ReturnUserDto } from './dto/return-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
 import { PaginatedData } from '../utils/response.interface';
+import { FindAllUsersDto, FindUserDto } from './dto/find-user.dto';
 
 @Injectable()
 export class UserService {
@@ -16,21 +14,27 @@ export class UserService {
     private usersRepository: Repository<User>,
   ) {}
 
-  async create(data: CreateUserDto): Promise<ReturnUserDto> {
-    const hash = await bcrypt.hash(data.password, 10);
-    const user = await this.usersRepository.save({
-      ...data,
-      passwordHash: hash,
-    });
-    const { password, passwordHash, refreshToken, ...rest } = user;
-
-    return { ...rest } as ReturnUserDto;
+  async create(data: CreateUserDto): Promise<User> {
+    let user: User;
+    if (data.password) {
+      const { password, ...payload } = data;
+      const hash = await bcrypt.hash(password, 10);
+      user = await this.usersRepository.save({
+        ...payload,
+        passwordHash: hash,
+      });
+    } else {
+      user = await this.usersRepository.save({
+        ...data,
+      });
+    }
+    const { passwordHash, refreshTokenHash, ...rest } = user;
+    return rest;
   }
 
   async findAll(query: FindAllUsersDto): Promise<PaginatedData<User>> {
     const searchableFields = ['firstName', 'lastName', 'email'];
     const qb = this.usersRepository.createQueryBuilder('user');
-
     if (query.where) {
       Object.keys(query.where).forEach((key) => {
         qb.andWhere(`user.${key} = :${key}`, {
@@ -62,28 +66,29 @@ export class UserService {
     return { items, totalCount };
   }
 
-  async findOneBy(where: FindUserDto): Promise<User> {
-    const user = await this.usersRepository.findOneBy({ ...where });
-    if (!user) {
-      throw new NotFoundException(`User with fields ${JSON.stringify({ ...where })} not found`);
-    }
+  async findOneBy(where: FindUserDto, options?: FindOneOptions<User>): Promise<User | null> {
+    const user = await this.usersRepository.findOne({ where, ...options });
     return user;
   }
 
-  async updateBy(where: FindUserDto, data: UpdateUserDto): Promise<User | null> {
+  async updateBy(
+    where: FindUserDto,
+    data: DeepPartial<User> & { password?: string; refreshToken?: string | null },
+  ): Promise<User> {
+    const user = await this.usersRepository.findOneBy({ ...where });
+
+    if (!user) {
+      throw new NotFoundException(`User with fields ${JSON.stringify(where)} not found`);
+    }
+
+    if (data.password) {
+      user.passwordHash = await bcrypt.hash(data.password, 10);
+    }
+
     const { password, ...params } = data;
-    const updatePayload: Partial<User> = { ...params };
+    Object.assign(user, params);
 
-    if (password) {
-      updatePayload.passwordHash = await bcrypt.hash(password, 10);
-    }
-
-    const result = await this.usersRepository.update(where, updatePayload);
-
-    if (result.affected === 0) {
-      throw new NotFoundException(`User with fields ${JSON.stringify({ ...where })} not found`);
-    }
-    return await this.usersRepository.findOneBy({ ...where });
+    return await this.usersRepository.save(user);
   }
 
   async deleteBy(where: FindUserDto): Promise<DeleteResult> {
