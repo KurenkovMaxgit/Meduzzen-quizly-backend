@@ -12,6 +12,7 @@ import { ConfigService } from '@nestjs/config';
 import { AppConfiguration } from '../config/configuration';
 import { JwtPayloadRequest } from './interfaces/auth-request.interface';
 import { User } from '../common/entities/user.entity';
+import { INVALID_CREDENTIALS } from './constants/auth.constants';
 
 @Injectable()
 export class AuthService {
@@ -30,15 +31,16 @@ export class AuthService {
   }
 
   async validateOrCreateUserByEmail(email: string): Promise<User> {
-    let user = await this.userService.findOneBy({ email });
-    if (!user) {
-      user = await this.userService.create({
-        email: email,
+    const user = await this.userService.findOneBy({ email });
+
+    return (
+      user ??
+      (await this.userService.create({
+        email,
         firstName: 'Quizzes',
         lastName: 'Enjoyer',
-      });
-    }
-    return user;
+      }))
+    );
   }
 
   async validateUserPassword(email: string, password: string) {
@@ -48,7 +50,7 @@ export class AuthService {
     );
 
     if (!user) {
-      throw new NotFoundException('Invalid credentials');
+      throw new NotFoundException(INVALID_CREDENTIALS);
     }
 
     if (!user.passwordHash) {
@@ -58,7 +60,7 @@ export class AuthService {
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
 
     if (!isPasswordValid) {
-      throw new BadRequestException('Incorrect password');
+      throw new BadRequestException(INVALID_CREDENTIALS);
     }
 
     const tokens = await this.getTokens(user.id, user.email);
