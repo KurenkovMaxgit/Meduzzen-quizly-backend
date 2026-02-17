@@ -22,6 +22,7 @@ import { ReturnCompanyDto } from './dto/return-company.dto';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { AllowedCompanyRoles } from '../common/decorators/company-roles.decorator';
 import { CompanyRolesGuard } from './guards/company-role.guard';
+import { FindOneQueryDto } from '../common/dto/find-one-query.dto';
 
 @ApiTags('Companies')
 @ApiBearerAuth()
@@ -32,6 +33,7 @@ export class CompanyController {
 
   @ApiOperation({ summary: 'Creates company for authenticated user' })
   @ApiResponse({ status: 201, description: 'Created.' })
+  @ApiResponse({ status: 400, description: 'Bad request.' })
   @UseInterceptors(ClassSerializerInterceptor)
   @Post()
   async create(@CurrentUser('id') userId: string, @Body() data: CreateCompanyDto) {
@@ -41,34 +43,29 @@ export class CompanyController {
 
   @ApiOperation({ summary: 'Get all companies by query parameters' })
   @ApiResponse({ status: 200, description: 'Success.' })
+  @ApiResponse({ status: 400, description: 'Bad request.' })
   @UseInterceptors(ClassSerializerInterceptor)
-  @Get()
+  @Get('list')
   async findAll(@Query() query: FindAllCompaniesDto) {
     return await this.companyService.findAll(query);
   }
 
   @ApiOperation({ summary: 'Get one company by id' })
   @ApiResponse({ status: 200, description: 'Success.' })
-  @ApiResponse({ status: 404, description: 'Not found.' })
+  @ApiResponse({ status: 400, description: 'Bad request.' })
   @UseInterceptors(ClassSerializerInterceptor)
   @Get(':id')
-  async findOneById(@Param('id', ParseUUIDPipe) id: string) {
-    const company = await this.companyService.findOneBy({ id });
-    return company ? new ReturnCompanyDto(company) : company;
-  }
-
-  @ApiOperation({ summary: 'Get one company with all members by id' })
-  @UseInterceptors(ClassSerializerInterceptor)
-  @Get(':id/members')
-  async findOneByIdWithMembers(@Param('id', ParseUUIDPipe) id: string) {
-    const company = await this.companyService.findOneBy(
-      { id },
-      { relations: { members: { user: true } } },
-    );
+  async findOneByIdWithMembers(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: FindOneQueryDto,
+  ) {
+    const company = await this.companyService.findOneBy({ id }, { relations: query.relations });
     return company ? new ReturnCompanyDto(company) : company;
   }
 
   @ApiOperation({ summary: 'Updates company by id' })
+  @ApiResponse({ status: 200, description: 'Success.' })
+  @ApiResponse({ status: 400, description: 'Bad request.' })
   @AllowedCompanyRoles(['owner', 'admin'])
   @UseInterceptors(ClassSerializerInterceptor)
   @Patch(':id')
@@ -78,6 +75,8 @@ export class CompanyController {
   }
 
   @ApiOperation({ summary: 'Deletes company by id.' })
+  @ApiResponse({ status: 200, description: 'Success.' })
+  @ApiResponse({ status: 400, description: 'Bad request.' })
   @AllowedCompanyRoles(['owner', 'admin'])
   @Delete(':id')
   async deleteOneById(@Param('id', ParseUUIDPipe) id: string) {
