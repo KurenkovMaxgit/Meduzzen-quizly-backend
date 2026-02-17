@@ -34,6 +34,15 @@ export const mockCompanyRepository = {
   createQueryBuilder: jest.fn(() => mockQueryBuilder),
 };
 
+export const mockCompanyUserRepository = {
+  create: jest.fn(),
+  save: jest.fn(),
+  findOne: jest.fn(),
+  findOneBy: jest.fn(),
+  merge: jest.fn(),
+  delete: jest.fn(),
+};
+
 export const mockEntityManager = {
   getRepository: jest.fn().mockImplementation((entity) => {
     if (entity === Company) return mockCompanyRepository;
