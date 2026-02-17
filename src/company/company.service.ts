@@ -14,6 +14,8 @@ export class CompanyService {
   constructor(
     @InjectRepository(Company)
     private readonly companiesRepository: Repository<Company>,
+    @InjectRepository(CompanyUser)
+    private readonly companyUserRepository: Repository<CompanyUser>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -100,5 +102,22 @@ export class CompanyService {
     }
 
     return result;
+  }
+
+  async getCompanyUserRole(userId: string, companyId: string) {
+    const membership = await this.companyUserRepository.findOne({
+      select: ['id', 'role'],
+      where: {
+        user: { id: userId },
+        company: { id: companyId },
+      },
+      relations: { user: true, company: true },
+    });
+
+    if (!membership) {
+      throw new NotFoundException('Member not found in this company');
+    }
+
+    return membership.role;
   }
 }
