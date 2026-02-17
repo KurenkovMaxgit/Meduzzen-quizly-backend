@@ -1,6 +1,7 @@
-import { Entity, Column } from 'typeorm';
+import { Entity, Column, OneToMany } from 'typeorm';
 import { UserRole } from '../../utils/enums';
 import { BaseEntity } from './base.entity';
+import { CompanyUser } from './company-user.entity';
 
 @Entity()
 export class User extends BaseEntity {
@@ -16,9 +17,12 @@ export class User extends BaseEntity {
   @Column('varchar', { length: 255, select: false, nullable: true })
   passwordHash?: string | null;
 
-  @Column({ type: 'enum', enum: UserRole, default: UserRole.CANDIDATE })
+  @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })
   role!: UserRole;
 
   @Column('varchar', { length: 255, select: false, default: null, nullable: true })
   refreshTokenHash?: string | null;
+
+  @OneToMany(() => CompanyUser, (member) => member.user)
+  memberships?: CompanyUser[];
 }
