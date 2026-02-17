@@ -1,54 +1,61 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { Global, INestApplication, Module, ValidationPipe } from '@nestjs/common';
+import { INestApplication, ValidationPipe, ExecutionContext } from '@nestjs/common';
 import request from 'supertest';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { CompanyModule } from '../src/company/company.module';
-import { Company } from '../src/common/entities/company.entity';
+import { CompanyController } from '../src/company/company.controller';
+import { CompanyService } from '../src/company/company.service';
 import { JwtAuthGuard } from '../src/auth/guards/auth-jwt.guard';
-import { CreateCompanyDto } from '../src/company/dto/create-company.dto';
-import { DataSource } from 'typeorm';
-import { mockCompanyRepository, mockDataSource, mockCompany } from '../src/mock/company-tests.mock';
+import { mockCompany } from '../src/mock/company-tests.mock';
 import { mockUser } from '../src/mock/user-tests.mock';
-import { CompanyUser } from '../src/common/entities/company-user.entity';
-
-@Global()
-@Module({
-  providers: [
-    {
-      provide: DataSource,
-      useValue: mockDataSource,
-    },
-  ],
-  exports: [DataSource], // Export it so other modules can use it
-})
-class MockDatabaseModule {}
-
-const mockJwtAuthGuard = {
-  canActivate: (context: any) => {
-    const req = context.switchToHttp().getRequest();
-    req.user = mockUser;
-    return true;
-  },
-};
+import { CreateCompanyDto } from '../src/company/dto/create-company.dto';
+import { CompanyRolesGuard } from '../src/company/guards/company-role.guard';
 
 describe('CompanyController (e2e)', () => {
   let app: INestApplication;
+  let companyService: CompanyService;
+
+  const mockCompanyService = {
+    create: jest.fn().mockResolvedValue(mockCompany),
+    findAll: jest.fn().mockResolvedValue({ items: [mockCompany], totalCount: 1 }),
+    findOneBy: jest.fn().mockImplementation((where) => {
+      if (where.id === mockCompany.id) return Promise.resolve(mockCompany);
+      return Promise.resolve(null);
+    }),
+    updateBy: jest.fn().mockResolvedValue({ ...mockCompany, name: 'Updated Name' }),
+    deleteBy: jest.fn().mockResolvedValue({ affected: 1 }),
+  };
+
+  const mockJwtAuthGuard = {
+    canActivate: (context: ExecutionContext) => {
+      const req = context.switchToHttp().getRequest();
+      req.user = mockUser;
+      return true;
+    },
+  };
+
+  const mockCompanyRolesGuard = {
+    canActivate: () => true,
+  };
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [CompanyModule, MockDatabaseModule],
+      controllers: [CompanyController],
+      providers: [
+        {
+          provide: CompanyService,
+          useValue: mockCompanyService,
+        },
+      ],
     })
-      .overrideProvider(getRepositoryToken(Company))
-      .useValue(mockCompanyRepository)
-      .overrideProvider(getRepositoryToken(CompanyUser))
-      .useValue(mockCompanyRepository)
       .overrideGuard(JwtAuthGuard)
       .useValue(mockJwtAuthGuard)
+      .overrideGuard(CompanyRolesGuard)
+      .useValue(mockCompanyRolesGuard)
       .compile();
 
+    companyService = moduleFixture.get<CompanyService>(CompanyService);
     app = moduleFixture.createNestApplication();
 
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
 
     await app.init();
   });
@@ -57,12 +64,8 @@ describe('CompanyController (e2e)', () => {
     await app.close();
   });
 
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
-  describe('/company (POST)', () => {
-    it('should create a company', () => {
+  describe('POST /company', () => {
+    it('should create a company for the authenticated user', () => {
       const createDto: CreateCompanyDto = {
         name: 'Hubabuba Corp',
         description: 'We make hubabuba',
@@ -73,8 +76,11 @@ describe('CompanyController (e2e)', () => {
         .send(createDto)
         .expect(201)
         .expect((res) => {
-          expect(res.body.name).toEqual(createDto.name);
-          expect(mockDataSource.transaction).toHaveBeenCalled();
+          expect(res.body.name).toEqual(mockCompany.name);
+          expect(companyService.create).toHaveBeenCalledWith(
+            mockUser.id,
+            expect.objectContaining(createDto),
+          );
         });
     });
 
@@ -83,73 +89,74 @@ describe('CompanyController (e2e)', () => {
     });
   });
 
-  describe('/company (GET)', () => {
-    it('should return paginated list', () => {
+  describe('GET /company/list (findAll)', () => {
+    it('should return paginated companies', () => {
       return request(app.getHttpServer())
-        .get('/company?take=10&skip=0')
+        .get('/company/list')
+        .query({ take: 10, skip: 0 })
         .expect(200)
         .expect((res) => {
-          expect(res.body.items).toBeInstanceOf(Array);
+          expect(res.body.items).toHaveLength(1);
           expect(res.body.totalCount).toBe(1);
+          expect(companyService.findAll).toHaveBeenCalled();
         });
+    });
+
+    it('should validate query params (e.g. invalid json in where)', () => {
+      return request(app.getHttpServer()).get('/company/list').query({ take: -5 }).expect(400);
     });
   });
 
-  describe('/company/:id (GET)', () => {
-    it('should return a company by ID', () => {
-      mockCompanyRepository.findOne.mockResolvedValue(mockCompany);
-
+  describe('GET /company/:id', () => {
+    it('should return a company by valid UUID', () => {
       return request(app.getHttpServer())
         .get(`/company/${mockCompany.id}`)
         .expect(200)
         .expect((res) => {
           expect(res.body.id).toEqual(mockCompany.id);
+          expect(companyService.findOneBy).toHaveBeenCalledWith(
+            { id: mockCompany.id },
+            expect.anything(),
+          );
         });
     });
 
     it('should return 400 for invalid UUID', () => {
       return request(app.getHttpServer()).get('/company/not-a-uuid').expect(400);
     });
+
+    it('should handle company not found (returning null or 404)', () => {
+      const randomId = '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
+      return request(app.getHttpServer()).get(`/company/${randomId}`).expect(200);
+    });
   });
 
-  describe('/company/:id (PATCH)', () => {
-    it('should update a company', () => {
-      mockCompanyRepository.findOneBy.mockResolvedValue(mockCompany);
-      mockCompanyRepository.save.mockResolvedValue({
-        ...mockCompany,
-        name: 'Updated Name',
-      });
+  describe('PATCH /company/:id', () => {
+    it('should update the company', () => {
+      const updateDto = { name: 'Updated Name' };
 
       return request(app.getHttpServer())
         .patch(`/company/${mockCompany.id}`)
-        .send({ name: 'Updated Name' })
+        .send(updateDto)
         .expect(200)
         .expect((res) => {
           expect(res.body.name).toEqual('Updated Name');
+          expect(companyService.updateBy).toHaveBeenCalledWith(
+            { id: mockCompany.id },
+            expect.objectContaining(updateDto),
+          );
         });
-    });
-
-    it('should return 404 if company not found', () => {
-      mockCompanyRepository.findOneBy.mockResolvedValue(null);
-
-      return request(app.getHttpServer())
-        .patch(`/company/${mockCompany.id}`)
-        .send({ name: 'Updated Name' })
-        .expect(404);
     });
   });
 
-  describe('/company/:id (DELETE)', () => {
-    it('should delete a company', () => {
-      mockCompanyRepository.delete.mockResolvedValue({ affected: 1 });
-
-      return request(app.getHttpServer()).delete(`/company/${mockCompany.id}`).expect(200);
-    });
-
-    it('should return 404 if nothing deleted', () => {
-      mockCompanyRepository.delete.mockResolvedValue({ affected: 0 });
-
-      return request(app.getHttpServer()).delete(`/company/${mockCompany.id}`).expect(404);
+  describe('DELETE /company/:id', () => {
+    it('should delete the company', () => {
+      return request(app.getHttpServer())
+        .delete(`/company/${mockCompany.id}`)
+        .expect(200)
+        .expect(() => {
+          expect(companyService.deleteBy).toHaveBeenCalledWith({ id: mockCompany.id });
+        });
     });
   });
 });

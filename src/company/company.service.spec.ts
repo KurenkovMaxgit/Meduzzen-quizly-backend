@@ -4,13 +4,14 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Company } from '../common/entities/company.entity';
 import { CompanyUser } from '../common/entities/company-user.entity';
 import { DataSource, Repository, DeleteResult } from 'typeorm';
-import { NotFoundException } from '@nestjs/common';
+import { Logger, NotFoundException } from '@nestjs/common';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { CompanyRole, CompanyStatus } from '../utils/enums';
 import { mockUser } from '../mock/user-tests.mock';
 import {
   mockCompany,
   mockCompanyRepository,
+  mockCompanyUserRepository,
   mockDataSource,
   mockEntityManager,
   mockQueryBuilder,
@@ -30,9 +31,14 @@ describe('CompanyService', () => {
           useValue: mockCompanyRepository,
         },
         {
+          provide: getRepositoryToken(CompanyUser),
+          useValue: mockCompanyUserRepository,
+        },
+        {
           provide: DataSource,
           useValue: mockDataSource,
         },
+        Logger,
       ],
     }).compile();
 

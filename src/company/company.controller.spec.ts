@@ -5,7 +5,12 @@ import { CompanyUser } from '../common/entities/company-user.entity';
 import { Company } from '../common/entities/company.entity';
 import { CompanyService } from './company.service';
 import { DataSource } from 'typeorm';
-import { mockCompanyRepository, mockDataSource } from '../mock/company-tests.mock';
+import {
+  mockCompanyRepository,
+  mockCompanyUserRepository,
+  mockDataSource,
+} from '../mock/company-tests.mock';
+import { Logger } from '@nestjs/common';
 
 describe('CompanyController', () => {
   let controller: CompanyController;
@@ -19,9 +24,14 @@ describe('CompanyController', () => {
           useValue: mockCompanyRepository,
         },
         {
+          provide: getRepositoryToken(CompanyUser),
+          useValue: mockCompanyUserRepository,
+        },
+        {
           provide: DataSource,
           useValue: mockDataSource,
         },
+        Logger,
       ],
       controllers: [CompanyController],
     }).compile();
