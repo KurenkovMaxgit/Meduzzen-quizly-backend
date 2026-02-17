@@ -20,10 +20,12 @@ import { FindAllCompaniesDto } from './dto/find-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 import { ReturnCompanyDto } from './dto/return-company.dto';
 import { CreateCompanyDto } from './dto/create-company.dto';
+import { AllowedCompanyRoles } from '../common/decorators/company-roles.decorator';
+import { CompanyRolesGuard } from './guards/company-role.guard';
 
 @ApiTags('Companies')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, CompanyRolesGuard)
 @Controller('company')
 export class CompanyController {
   constructor(private readonly companyService: CompanyService) {}
@@ -67,6 +69,7 @@ export class CompanyController {
   }
 
   @ApiOperation({ summary: 'Updates company by id' })
+  @AllowedCompanyRoles(['owner', 'admin'])
   @UseInterceptors(ClassSerializerInterceptor)
   @Patch(':id')
   async updateOneById(@Param('id', ParseUUIDPipe) id: string, @Body() data: UpdateCompanyDto) {
@@ -75,6 +78,7 @@ export class CompanyController {
   }
 
   @ApiOperation({ summary: 'Deletes company by id.' })
+  @AllowedCompanyRoles(['owner', 'admin'])
   @Delete(':id')
   async deleteOneById(@Param('id', ParseUUIDPipe) id: string) {
     return await this.companyService.deleteBy({ id });
