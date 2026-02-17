@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, DataSource, DeleteResult, FindOneOptions, Repository } from 'typeorm';
+import { DataSource, DeleteResult, FindOneOptions, Repository } from 'typeorm';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { CompanyRole } from '../utils/enums';
 import { CompanyUser } from '../common/entities/company-user.entity';
@@ -8,6 +8,9 @@ import { FindAllCompaniesDto, FindCompanyDto } from './dto/find-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 import { Company } from '../common/entities/company.entity';
 import { PaginatedData } from '../utils/response.interface';
+import { applyQueryFilters } from '../utils/find-all-query-builder.util';
+
+const ALLOWED_COMPANY_RELATIONS = ['members', 'members.user'];
 
 @Injectable()
 export class CompanyService {
@@ -17,6 +20,7 @@ export class CompanyService {
     @InjectRepository(CompanyUser)
     private readonly companyUserRepository: Repository<CompanyUser>,
     private readonly dataSource: DataSource,
+    private readonly logger: Logger,
   ) {}
 
   async create(userId: string, data: CreateCompanyDto): Promise<Company> {
@@ -39,33 +43,12 @@ export class CompanyService {
   }
 
   async findAll(query: FindAllCompaniesDto): Promise<PaginatedData<Company>> {
-    const searchableFields = ['name', 'description'];
     const qb = this.companiesRepository.createQueryBuilder('company');
-    if (query.where) {
-      Object.keys(query.where).forEach((key) => {
-        qb.andWhere(`company.${key} = :${key}`, {
-          [key]: (query.where as Record<string, unknown>)[key],
-        });
-      });
-    }
-    if (query.search) {
-      qb.andWhere(
-        new Brackets((subQb) => {
-          searchableFields.forEach((field) => {
-            subQb.orWhere(`company.${field} ILIKE :search`, { search: `%${query.search}%` });
-          });
-        }),
-      );
-    }
 
-    if (query.order) {
-      Object.keys(query.order).forEach((key) => {
-        qb.addOrderBy(`company.${key}`, query.order![key] as 'ASC' | 'DESC');
-      });
-    }
-
-    qb.take(query.take);
-    qb.skip(query.skip);
+    applyQueryFilters<FindCompanyDto>(qb, query, {
+      searchableFields: ['name', 'description'],
+      allowedRelations: ALLOWED_COMPANY_RELATIONS,
+    });
 
     const [items, totalCount] = await qb.getManyAndCount();
 
@@ -74,11 +57,28 @@ export class CompanyService {
 
   async findOneBy(
     where: FindCompanyDto,
-    options?: FindOneOptions<Company>,
+    options: FindOneOptions<Company> = {},
   ): Promise<Company | null> {
+    let { relations } = options;
+
+    if (Array.isArray(relations)) {
+      const safeRelations = relations.filter((relation) =>
+        ALLOWED_COMPANY_RELATIONS.includes(relation),
+      );
+
+      if (relations.length !== safeRelations.length) {
+        this.logger.warn(
+          `Blocked attempt to access invalid relations. Requested: ${relations}, Allowed: ${safeRelations}`,
+        );
+      }
+
+      relations = safeRelations;
+    }
+
     return this.companiesRepository.findOne({
       ...options,
       where,
+      relations,
     });
   }
 

@@ -1,5 +1,13 @@
 import { Type } from '@nestjs/common';
-import { IsOptional, IsString, ValidateNested, IsObject, IsInt, Min } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  ValidateNested,
+  IsObject,
+  IsInt,
+  Min,
+  IsArray,
+} from 'class-validator';
 import { Type as ClassTransformerType, plainToInstance, Transform } from 'class-transformer';
 
 /**
@@ -12,16 +20,11 @@ function cleanUndefined(obj: unknown): unknown {
   }
 
   if (obj !== null && typeof obj === 'object') {
-    // 1. Iterate over all keys
     for (const key of Object.keys(obj)) {
       const value = obj[key] as unknown;
-
-      // 2. If undefined, delete it
       if (value === undefined) {
         delete obj[key];
-      }
-      // 3. If object (and not a Date), recurse down
-      else if (typeof value === 'object' && !(value instanceof Date)) {
+      } else if (typeof value === 'object' && !(value instanceof Date)) {
         cleanUndefined(value);
       }
     }
@@ -35,6 +38,7 @@ export interface FindAllQuery<T> {
   where?: T;
   search?: string;
   order?: { [field in keyof T]?: 'ASC' | 'DESC' };
+  relations?: string[];
 }
 
 /**
@@ -81,6 +85,15 @@ export function FilterDto<T>(classRef: Type<T>): Type<FindAllQuery<T>> {
     )
     @IsObject()
     order?: any;
+
+    @IsOptional()
+    @IsArray()
+    @IsString({ each: true })
+    @Transform(({ value }) => {
+      if (typeof value === 'string') return [value];
+      return value;
+    })
+    relations?: string[] = [];
   }
 
   return GenericFindAllQuery;

@@ -1,17 +1,21 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, DeepPartial, DeleteResult, FindOneOptions, Repository } from 'typeorm';
+import { DeepPartial, DeleteResult, FindOneOptions, Repository } from 'typeorm';
 import { User } from '../common/entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
 import { PaginatedData } from '../utils/response.interface';
 import { FindAllUsersDto, FindUserDto } from './dto/find-user.dto';
+import { applyQueryFilters } from '../utils/find-all-query-builder.util';
+
+const ALLOWED_USER_RELATIONS = ['memberships', 'memberships.company'];
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    private readonly logger: Logger,
   ) {}
 
   async create(data: CreateUserDto): Promise<User> {
@@ -33,42 +37,38 @@ export class UserService {
   }
 
   async findAll(query: FindAllUsersDto): Promise<PaginatedData<User>> {
-    const searchableFields = ['firstName', 'lastName', 'email'];
     const qb = this.usersRepository.createQueryBuilder('user');
-    if (query.where) {
-      Object.keys(query.where).forEach((key) => {
-        qb.andWhere(`user.${key} = :${key}`, {
-          [key]: (query.where as Record<string, unknown>)[key],
-        });
-      });
-    }
-    if (query.search) {
-      qb.andWhere(
-        new Brackets((subQb) => {
-          searchableFields.forEach((field) => {
-            subQb.orWhere(`user.${field} ILIKE :search`, { search: `%${query.search}%` });
-          });
-        }),
-      );
-    }
-
-    if (query.order) {
-      Object.keys(query.order).forEach((key) => {
-        qb.addOrderBy(`user.${key}`, query.order![key] as 'ASC' | 'DESC');
-      });
-    }
-
-    qb.take(query.take);
-    qb.skip(query.skip);
-
+    applyQueryFilters<FindUserDto>(qb, query, {
+      searchableFields: ['firstName', 'lastName', 'email'],
+      allowedRelations: ALLOWED_USER_RELATIONS,
+    });
     const [items, totalCount] = await qb.getManyAndCount();
 
     return { items, totalCount };
   }
 
   async findOneBy(where: FindUserDto, options: FindOneOptions<User> = {}): Promise<User | null> {
-    const user = await this.usersRepository.findOne({ where, ...options });
-    return user;
+    let { relations } = options;
+
+    if (Array.isArray(relations)) {
+      const safeRelations = relations.filter((relation) =>
+        ALLOWED_USER_RELATIONS.includes(relation),
+      );
+
+      if (relations.length !== safeRelations.length) {
+        this.logger.warn(
+          `Blocked attempt to access invalid relations. Requested: ${relations}, Allowed: ${safeRelations}`,
+        );
+      }
+
+      relations = safeRelations;
+    }
+
+    return this.usersRepository.findOne({
+      ...options,
+      where,
+      relations,
+    });
   }
 
   async updateBy(
