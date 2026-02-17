@@ -66,7 +66,7 @@ export class UserService {
     return { items, totalCount };
   }
 
-  async findOneBy(where: FindUserDto, options?: FindOneOptions<User>): Promise<User | null> {
+  async findOneBy(where: FindUserDto, options: FindOneOptions<User> = {}): Promise<User | null> {
     const user = await this.usersRepository.findOne({ where, ...options });
     return user;
   }
