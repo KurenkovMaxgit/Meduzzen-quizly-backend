@@ -13,3 +13,14 @@ export enum CompanyRole {
   ADMIN = 'admin',
   MEMBER = 'member',
 }
+
+export enum ActionType {
+  REQUEST = 'request',
+  INVITE = 'invite',
+}
+
+export enum ActionStatus {
+  PENDING = 'pending',
+  ACCEPTED = 'accepted',
+  DECLINED = 'declined',
+}
