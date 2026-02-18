@@ -2,7 +2,7 @@ import { Type } from 'class-transformer';
 import { IsDate, IsEnum, IsOptional, IsString, IsUUID, ValidateNested } from 'class-validator';
 import { FilterDto } from '../../common/dto/find-all-query.dto';
 import { CompanyStatus } from '../../utils/enums';
-import { FindCompanyMembersFilterDto } from './find-company-members.dto';
+import { FindCompanyMembersDto } from './find-company-members.dto';
 
 export class FindCompanyDto {
   @IsOptional()
@@ -23,8 +23,8 @@ export class FindCompanyDto {
 
   @IsOptional()
   @ValidateNested()
-  @Type(() => FindCompanyMembersFilterDto)
-  members?: FindCompanyMembersFilterDto;
+  @Type(() => FindCompanyMembersDto)
+  members?: FindCompanyMembersDto;
 
   @IsOptional()
   @Type(() => Date)

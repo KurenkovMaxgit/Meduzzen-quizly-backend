@@ -11,7 +11,7 @@ import {
 import { UserRole } from '../../utils/enums';
 import { Type } from 'class-transformer';
 import { FilterDto } from '../../common/dto/find-all-query.dto';
-import { FindCompanyMembersFilterDto } from '../../company/dto/find-company-members.dto';
+import { FindCompanyMembersDto } from '../../company/dto/find-company-members.dto';
 
 export class FindUserDto {
   @IsOptional()
@@ -39,8 +39,8 @@ export class FindUserDto {
 
   @IsOptional()
   @ValidateNested()
-  @Type(() => FindCompanyMembersFilterDto)
-  memberships?: FindCompanyMembersFilterDto;
+  @Type(() => FindCompanyMembersDto)
+  memberships?: FindCompanyMembersDto;
 
   @IsOptional()
   @Type(() => Date)
