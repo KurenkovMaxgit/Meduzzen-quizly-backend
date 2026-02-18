@@ -1,6 +1,6 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, DeleteResult, FindOneOptions, Repository } from 'typeorm';
+import { DataSource, DeleteResult, EntityManager, FindOneOptions, In, Repository } from 'typeorm';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { CompanyRole } from '../utils/enums';
 import { CompanyUser } from '../common/entities/company-user.entity';
@@ -119,5 +119,48 @@ export class CompanyService {
     }
 
     return membership.role;
+  }
+
+  async addMember(companyId: string, userId: string, manager?: EntityManager) {
+    const repo = manager ? manager.getRepository(CompanyUser) : this.companyUserRepository;
+
+    const existingMember = await repo.findOne({
+      where: {
+        company: { id: companyId },
+        user: { id: userId },
+      },
+    });
+
+    if (existingMember) return;
+
+    return repo.save({
+      company: { id: companyId },
+      user: { id: userId },
+    });
+  }
+
+  async deleteCompanyUsers(companyId: string, userIds: string[]) {
+    const ownersBeingKicked = await this.companyUserRepository.count({
+      where: {
+        company: { id: companyId },
+        user: { id: In(userIds) },
+        role: CompanyRole.OWNER,
+      },
+    });
+
+    if (ownersBeingKicked > 0) {
+      throw new BadRequestException('You cannot remove the company owner');
+    }
+
+    const result = await this.companyUserRepository.delete({
+      company: { id: companyId },
+      user: { id: In(userIds) },
+    });
+
+    if (result.affected === 0) {
+      throw new NotFoundException(`No company members found to delete`);
+    }
+
+    return result;
   }
 }

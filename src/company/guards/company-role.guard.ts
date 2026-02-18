@@ -18,7 +18,7 @@ export class CompanyRolesGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const userRole = await this.companyService.getCompanyUserRole(
       request.user.id,
-      request.params.id,
+      request.params.companyId,
     );
     return roles.includes(userRole);
   }
