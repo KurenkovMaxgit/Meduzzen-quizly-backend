@@ -2,6 +2,7 @@ import { Entity, Column, OneToMany } from 'typeorm';
 import { UserRole } from '../../utils/enums';
 import { BaseEntity } from './base.entity';
 import { CompanyUser } from './company-user.entity';
+import { Action } from './action.entity';
 
 @Entity()
 export class User extends BaseEntity {
@@ -25,4 +26,10 @@ export class User extends BaseEntity {
 
   @OneToMany(() => CompanyUser, (member) => member.user)
   memberships?: CompanyUser[];
+
+  @OneToMany(() => Action, (action) => action.createdBy)
+  sentActions?: Action[];
+
+  @OneToMany(() => Action, (action) => action.subject)
+  receivedActions?: Action[];
 }
