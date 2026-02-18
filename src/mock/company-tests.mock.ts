@@ -48,6 +48,7 @@ export const mockCompanyUserRepository = {
   create: jest.fn(),
   save: jest.fn(),
   findOne: jest.fn(),
+  update: jest.fn(),
   count: jest.fn(),
   delete: jest.fn(),
 };
