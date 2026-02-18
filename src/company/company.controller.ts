@@ -6,6 +6,7 @@ import {
   Get,
   Param,
   ParseArrayPipe,
+  ParseEnumPipe,
   ParseUUIDPipe,
   Patch,
   Post,
@@ -25,6 +26,7 @@ import { AllowedCompanyRoles } from '../common/decorators/company-roles.decorato
 import { CompanyRolesGuard } from './guards/company-role.guard';
 import { FindOneQueryDto } from '../common/dto/find-one-query.dto';
 import { ParseUUIDArrayPipe } from '../common/pipes/parse-uuid-array.pipe';
+import { CompanyRole } from '../utils/enums';
 
 @ApiTags('Companies')
 @ApiBearerAuth()
@@ -88,7 +90,34 @@ export class CompanyController {
     return await this.companyService.deleteBy({ id });
   }
 
-  @ApiOperation({ summary: 'Deletes user from company by its id.' })
+  @ApiOperation({ summary: 'Updates users roles from company by their ids.' })
+  @ApiResponse({ status: 200, description: 'Success.' })
+  @ApiResponse({ status: 400, description: 'Bad request.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
+  @AllowedCompanyRoles(['owner'])
+  @Patch(':companyId/users/:newRole')
+  async updateRoles(
+    @Param('companyId', ParseUUIDPipe) id: string,
+    @Param('newRole', new ParseEnumPipe(CompanyRole)) newRole: CompanyRole,
+    @Body('userIds', ParseUUIDArrayPipe) userIds: string[],
+  ) {
+    return this.companyService.updateCompanyUsersRole(id, userIds, newRole);
+  }
+
+  @ApiOperation({ summary: 'Updates existing member role to "owner".' })
+  @ApiResponse({ status: 200, description: 'Success.' })
+  @ApiResponse({ status: 400, description: 'Bad request.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
+  @AllowedCompanyRoles(['owner'])
+  @Patch(':companyId/add/owner/:userId')
+  async addNewOwner(
+    @Param('companyId', ParseUUIDPipe) id: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+  ) {
+    return this.companyService.addNewCompanyOwner(id, userId);
+  }
+
+  @ApiOperation({ summary: 'Deletes authenticated user from company by its id.' })
   @ApiResponse({ status: 200, description: 'Success.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @Delete('leave/:companyId')
@@ -102,6 +131,7 @@ export class CompanyController {
   @ApiOperation({ summary: 'Deletes user from company by its id.' })
   @ApiResponse({ status: 200, description: 'Success.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
   @AllowedCompanyRoles(['owner'])
   @Delete(':companyId/users')
   async kickUsers(
