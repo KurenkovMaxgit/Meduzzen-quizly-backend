@@ -152,7 +152,7 @@ export class CompanyService {
       throw new BadRequestException(`One or more users are not members of this company`);
     }
 
-    this.companyUserRepository.update(
+    await this.companyUserRepository.update(
       { company: { id: companyId }, user: { id: In(userIds) } },
       { role: newRole },
     );
