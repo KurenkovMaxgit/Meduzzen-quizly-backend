@@ -1,10 +1,10 @@
 import { Exclude, Expose } from 'class-transformer';
-import { UserRole } from '../../utils/enums';
 import { CompanyUser } from '../../common/entities/company-user.entity';
+import { CompanyStatus } from '../../utils/enums';
 
 @Exclude()
-export class ReturnUserDto {
-  constructor(partial: Partial<ReturnUserDto>) {
+export class ReturnCompanyDto {
+  constructor(partial: Partial<ReturnCompanyDto>) {
     Object.assign(this, partial);
   }
 
@@ -12,19 +12,16 @@ export class ReturnUserDto {
   id!: string;
 
   @Expose()
-  firstName!: string;
+  name!: string;
 
   @Expose()
-  lastName!: string;
+  description!: string;
 
   @Expose()
-  email!: string;
+  status!: CompanyStatus;
 
   @Expose()
-  role!: UserRole;
-
-  @Expose()
-  memberships!: CompanyUser[];
+  members!: CompanyUser[];
 
   @Expose()
   createdAt!: Date;

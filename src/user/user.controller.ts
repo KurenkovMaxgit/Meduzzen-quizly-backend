@@ -19,6 +19,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { User } from '../common/entities/user.entity';
 import { ReturnUserDto } from './dto/return-user.dto';
 import { FindAllUsersDto } from './dto/find-user.dto';
+import { FindOneQueryDto } from '../common/dto/find-one-query.dto';
 
 @ApiTags('Users')
 @ApiBearerAuth()
@@ -43,7 +44,7 @@ export class UserController {
   @ApiResponse({ status: 200, description: 'Success.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @UseGuards(JwtAuthGuard)
-  @Get()
+  @Get('list')
   async findAll(@Query() query: FindAllUsersDto) {
     return await this.userService.findAll(query);
   }
@@ -58,8 +59,8 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(ClassSerializerInterceptor)
   @Get(':id')
-  async findOneById(@Param('id', ParseUUIDPipe) id: string) {
-    const user = await this.userService.findOneBy({ id });
+  async findOneById(@Param('id', ParseUUIDPipe) id: string, @Query() query: FindOneQueryDto) {
+    const user = await this.userService.findOneBy({ id }, { relations: query.relations });
     return user ? new ReturnUserDto(user) : user;
   }
 

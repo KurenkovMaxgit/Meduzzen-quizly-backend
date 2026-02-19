@@ -3,9 +3,9 @@ import { UserService } from './user.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { User } from '../common/entities/user.entity';
 import { Repository, DeleteResult, Brackets } from 'typeorm';
-import { NotFoundException } from '@nestjs/common';
+import { Logger, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { mockUser } from '../mock/user-tests.mock';
+import { mockQueryBuilder, mockUser, mockUserRepository } from '../mock/user-tests.mock';
 
 jest.mock('bcrypt', () => ({
   hash: jest.fn().mockResolvedValue('hashed_secret'),
@@ -15,23 +15,6 @@ describe('UserService', () => {
   let service: UserService;
   let repository: Repository<User>;
 
-  const mockQueryBuilder = {
-    andWhere: jest.fn().mockReturnThis(),
-    orWhere: jest.fn().mockReturnThis(),
-    take: jest.fn().mockReturnThis(),
-    skip: jest.fn().mockReturnThis(),
-    addOrderBy: jest.fn().mockReturnThis(),
-    getManyAndCount: jest.fn().mockResolvedValue([[mockUser], 1]),
-  };
-
-  const mockUserRepository = {
-    save: jest.fn(),
-    findOne: jest.fn(),
-    findOneBy: jest.fn(),
-    delete: jest.fn(),
-    createQueryBuilder: jest.fn(() => mockQueryBuilder),
-  };
-
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -40,6 +23,7 @@ describe('UserService', () => {
           provide: getRepositoryToken(User),
           useValue: mockUserRepository,
         },
+        Logger,
       ],
     }).compile();
 
@@ -101,7 +85,7 @@ describe('UserService', () => {
         take: 10,
         skip: 0,
         search: 'john',
-        where: { role: 'MEMBER' },
+        where: { role: 'member' },
         order: { createdAt: 'DESC' },
       };
 
@@ -110,23 +94,22 @@ describe('UserService', () => {
       expect(repository.createQueryBuilder).toHaveBeenCalledWith('user');
 
       expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-        expect.stringContaining('user.role = :role'),
+        expect.stringContaining('user.role = :user_role'),
         expect.anything(),
       );
 
       expect(mockQueryBuilder.take).toHaveBeenCalledWith(10);
       expect(mockQueryBuilder.skip).toHaveBeenCalledWith(0);
-
       expect(mockQueryBuilder.addOrderBy).toHaveBeenCalledWith('user.createdAt', 'DESC');
-
       expect(result).toEqual({ items: [mockUser], totalCount: 1 });
     });
 
     it('should handle empty query parameters', async () => {
       await service.findAll({});
 
-      expect(mockQueryBuilder.take).toHaveBeenCalledWith(undefined);
-      expect(mockQueryBuilder.skip).toHaveBeenCalledWith(undefined);
+      expect(mockQueryBuilder.take).not.toHaveBeenCalled();
+      expect(mockQueryBuilder.skip).not.toHaveBeenCalled();
+
       expect(mockQueryBuilder.getManyAndCount).toHaveBeenCalled();
     });
   });
@@ -180,7 +163,7 @@ describe('UserService', () => {
       expect(bcrypt.hash).toHaveBeenCalledWith('newPassword', 10);
       expect(repository.save).toHaveBeenCalledWith(
         expect.objectContaining({
-          passwordHash: 'hashed_secret', 
+          passwordHash: 'hashed_secret',
         }),
       );
     });

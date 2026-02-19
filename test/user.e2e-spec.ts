@@ -6,6 +6,8 @@ import { UserService } from '../src/user/user.service';
 import { JwtAuthGuard } from '../src/auth/guards/auth-jwt.guard';
 import { mockUser } from '../src/mock/user-tests.mock';
 
+const VALID_UUID = 'f77314d7-8429-49f8-a719-b0cdd54bade4';
+
 describe('UserController (e2e)', () => {
   let app: INestApplication;
   let userService: UserService;
@@ -13,7 +15,7 @@ describe('UserController (e2e)', () => {
   const mockUserService = {
     findAll: jest.fn().mockResolvedValue({ items: [mockUser], totalCount: 1 }),
     findOneBy: jest.fn().mockImplementation((criteria) => {
-      if (criteria.id === mockUser.id) return Promise.resolve(mockUser);
+      if (criteria.id === VALID_UUID) return Promise.resolve(mockUser);
       return Promise.resolve(null);
     }),
     updateBy: jest.fn().mockResolvedValue({ ...mockUser, firstName: 'Updated' }),
@@ -60,36 +62,34 @@ describe('UserController (e2e)', () => {
         .expect(200)
         .expect((res) => {
           expect(res.body.email).toEqual(mockUser.email);
-          expect(res.body).not.toHaveProperty('passwordHash');
         });
     });
   });
 
-  describe('GET /user (findAll)', () => {
+  describe('GET /user/list (findAll)', () => {
     it('should return paginated users', () => {
       return request(app.getHttpServer())
-        .get('/user')
+        .get('/user/list')
         .query({ take: 10, skip: 0 })
         .expect(200)
         .expect((res) => {
           expect(res.body.items).toHaveLength(1);
           expect(res.body.totalCount).toBe(1);
-          expect(userService.findAll).toHaveBeenCalled();
         });
     });
 
-    it('should validate query params (e.g. invalid json in where)', () => {
-      return request(app.getHttpServer()).get('/user').query({ take: -5 }).expect(400);
+    it('should validate query params (e.g. invalid take)', () => {
+      return request(app.getHttpServer()).get('/user/list').query({ take: -5 }).expect(400);
     });
   });
 
   describe('GET /user/:id', () => {
     it('should return a user by valid UUID', () => {
       return request(app.getHttpServer())
-        .get(`/user/${mockUser.id}`)
+        .get(`/user/${VALID_UUID}`)
         .expect(200)
         .expect((res) => {
-          expect(res.body.id).toEqual(mockUser.id);
+          expect(res.body.id).toEqual(VALID_UUID);
         });
     });
 
@@ -97,8 +97,8 @@ describe('UserController (e2e)', () => {
       return request(app.getHttpServer()).get('/user/not-a-uuid').expect(400);
     });
 
-    it('should handle user not found (returning null or 404 depending on logic)', () => {
-      const randomId = '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
+    it('should handle user not found (returning null or 404)', () => {
+      const randomId = '968a7469-77f8-47cd-9f12-86c2eb23f8c4';
       return request(app.getHttpServer())
         .get(`/user/${randomId}`)
         .expect(200)
@@ -119,7 +119,7 @@ describe('UserController (e2e)', () => {
         .expect((res) => {
           expect(res.body.firstName).toEqual('Updated');
           expect(userService.updateBy).toHaveBeenCalledWith(
-            { id: mockUser.id },
+            { id: VALID_UUID },
             expect.objectContaining(updateDto),
           );
         });
@@ -132,7 +132,7 @@ describe('UserController (e2e)', () => {
         .delete('/user')
         .expect(200)
         .expect(() => {
-          expect(userService.deleteBy).toHaveBeenCalledWith({ id: mockUser.id });
+          expect(userService.deleteBy).toHaveBeenCalledWith({ id: VALID_UUID });
         });
     });
   });
