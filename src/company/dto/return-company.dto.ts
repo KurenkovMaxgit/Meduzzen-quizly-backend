@@ -1,5 +1,6 @@
 import { Exclude, Expose } from 'class-transformer';
 import { CompanyUser } from '../../common/entities/company-user.entity';
+import { CompanyStatus } from '../../utils/enums';
 
 @Exclude()
 export class ReturnCompanyDto {
@@ -17,7 +18,7 @@ export class ReturnCompanyDto {
   description!: string;
 
   @Expose()
-  status!: string;
+  status!: CompanyStatus;
 
   @Expose()
   members!: CompanyUser[];
