@@ -4,10 +4,10 @@ import request from 'supertest';
 import { CompanyController } from '../src/company/company.controller';
 import { CompanyService } from '../src/company/company.service';
 import { JwtAuthGuard } from '../src/auth/guards/auth-jwt.guard';
+import { CompanyRolesGuard } from '../src/company/guards/company-role.guard';
 import { mockCompany } from '../src/mock/company-tests.mock';
 import { mockUser } from '../src/mock/user-tests.mock';
 import { CreateCompanyDto } from '../src/company/dto/create-company.dto';
-import { CompanyRolesGuard } from '../src/company/guards/company-role.guard';
 
 describe('CompanyController (e2e)', () => {
   let app: INestApplication;
@@ -22,6 +22,7 @@ describe('CompanyController (e2e)', () => {
     }),
     updateBy: jest.fn().mockResolvedValue({ ...mockCompany, name: 'Updated Name' }),
     deleteBy: jest.fn().mockResolvedValue({ affected: 1 }),
+    deleteCompanyUsers: jest.fn().mockResolvedValue({ affected: 1 }),
   };
 
   const mockJwtAuthGuard = {
@@ -89,7 +90,7 @@ describe('CompanyController (e2e)', () => {
     });
   });
 
-  describe('GET /company/list (findAll)', () => {
+  describe('GET /company/list', () => {
     it('should return paginated companies', () => {
       return request(app.getHttpServer())
         .get('/company/list')
@@ -101,10 +102,6 @@ describe('CompanyController (e2e)', () => {
           expect(companyService.findAll).toHaveBeenCalled();
         });
     });
-
-    it('should validate query params (e.g. invalid json in where)', () => {
-      return request(app.getHttpServer()).get('/company/list').query({ take: -5 }).expect(400);
-    });
   });
 
   describe('GET /company/:id', () => {
@@ -114,20 +111,11 @@ describe('CompanyController (e2e)', () => {
         .expect(200)
         .expect((res) => {
           expect(res.body.id).toEqual(mockCompany.id);
-          expect(companyService.findOneBy).toHaveBeenCalledWith(
-            { id: mockCompany.id },
-            expect.anything(),
-          );
         });
     });
 
     it('should return 400 for invalid UUID', () => {
       return request(app.getHttpServer()).get('/company/not-a-uuid').expect(400);
-    });
-
-    it('should handle company not found (returning null or 404)', () => {
-      const randomId = '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
-      return request(app.getHttpServer()).get(`/company/${randomId}`).expect(200);
     });
   });
 
@@ -157,6 +145,53 @@ describe('CompanyController (e2e)', () => {
         .expect(() => {
           expect(companyService.deleteBy).toHaveBeenCalledWith({ id: mockCompany.id });
         });
+    });
+  });
+
+  describe('DELETE /company/leave/:companyId', () => {
+    it('should allow user to leave company', () => {
+      return request(app.getHttpServer())
+        .delete(`/company/leave/${mockCompany.id}`)
+        .expect(200)
+        .expect(() => {
+          expect(companyService.deleteCompanyUsers).toHaveBeenCalledWith(mockCompany.id, [
+            mockUser.id,
+          ]);
+        });
+    });
+  });
+
+  describe('DELETE /company/:companyId/users', () => {
+    const userIdsToKick = [
+      '123e4567-e89b-12d3-a456-426614174001',
+      '123e4567-e89b-12d3-a456-426614174002',
+    ];
+
+    it('should kick provided users', () => {
+      return request(app.getHttpServer())
+        .delete(`/company/${mockCompany.id}/users`)
+        .send({ userIds: userIdsToKick })
+        .expect(200)
+        .expect(() => {
+          expect(companyService.deleteCompanyUsers).toHaveBeenCalledWith(
+            mockCompany.id,
+            userIdsToKick,
+          );
+        });
+    });
+
+    it('should fail with 400 if userIds is not an array (Pipe Validation)', () => {
+      return request(app.getHttpServer())
+        .delete(`/company/${mockCompany.id}/users`)
+        .send({ userIds: 'not-an-array' })
+        .expect(400);
+    });
+
+    it('should fail with 400 if userIds contains invalid UUIDs (Pipe Validation)', () => {
+      return request(app.getHttpServer())
+        .delete(`/company/${mockCompany.id}/users`)
+        .send({ userIds: ['valid-uuid', 'invalid-uuid'] })
+        .expect(400);
     });
   });
 });

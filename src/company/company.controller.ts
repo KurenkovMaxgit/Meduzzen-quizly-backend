@@ -5,6 +5,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseArrayPipe,
   ParseUUIDPipe,
   Patch,
   Post,
@@ -23,6 +24,7 @@ import { CreateCompanyDto } from './dto/create-company.dto';
 import { AllowedCompanyRoles } from '../common/decorators/company-roles.decorator';
 import { CompanyRolesGuard } from './guards/company-role.guard';
 import { FindOneQueryDto } from '../common/dto/find-one-query.dto';
+import { ParseUUIDArrayPipe } from '../common/pipes/parse-uuid-array.pipe';
 
 @ApiTags('Companies')
 @ApiBearerAuth()
@@ -54,9 +56,9 @@ export class CompanyController {
   @ApiResponse({ status: 200, description: 'Success.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @UseInterceptors(ClassSerializerInterceptor)
-  @Get(':id')
+  @Get(':companyId')
   async findOneByIdWithMembers(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('companyId', ParseUUIDPipe) id: string,
     @Query() query: FindOneQueryDto,
   ) {
     const company = await this.companyService.findOneBy({ id }, { relations: query.relations });
@@ -68,8 +70,11 @@ export class CompanyController {
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @AllowedCompanyRoles(['owner', 'admin'])
   @UseInterceptors(ClassSerializerInterceptor)
-  @Patch(':id')
-  async updateOneById(@Param('id', ParseUUIDPipe) id: string, @Body() data: UpdateCompanyDto) {
+  @Patch(':companyId')
+  async updateOneById(
+    @Param('companyId', ParseUUIDPipe) id: string,
+    @Body() data: UpdateCompanyDto,
+  ) {
     const updated = await this.companyService.updateBy({ id }, data);
     return new ReturnCompanyDto(updated);
   }
@@ -78,8 +83,31 @@ export class CompanyController {
   @ApiResponse({ status: 200, description: 'Success.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @AllowedCompanyRoles(['owner', 'admin'])
-  @Delete(':id')
-  async deleteOneById(@Param('id', ParseUUIDPipe) id: string) {
+  @Delete(':companyId')
+  async deleteOneById(@Param('companyId', ParseUUIDPipe) id: string) {
     return await this.companyService.deleteBy({ id });
+  }
+
+  @ApiOperation({ summary: 'Deletes user from company by its id.' })
+  @ApiResponse({ status: 200, description: 'Success.' })
+  @ApiResponse({ status: 400, description: 'Bad request.' })
+  @Delete('leave/:companyId')
+  async leaveCompany(
+    @Param('companyId', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.companyService.deleteCompanyUsers(id, [userId]);
+  }
+
+  @ApiOperation({ summary: 'Deletes user from company by its id.' })
+  @ApiResponse({ status: 200, description: 'Success.' })
+  @ApiResponse({ status: 400, description: 'Bad request.' })
+  @AllowedCompanyRoles(['owner'])
+  @Delete(':companyId/users')
+  async kickUsers(
+    @Param('companyId', ParseUUIDPipe) id: string,
+    @Body('userIds', ParseUUIDArrayPipe) userIds: string[],
+  ) {
+    return this.companyService.deleteCompanyUsers(id, userIds);
   }
 }

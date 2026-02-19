@@ -9,6 +9,7 @@ import { UserModule } from './user/user.module';
 import { AppDataSource } from './utils/typeorm.datasource';
 import { AuthModule } from './auth/auth.module';
 import { CompanyModule } from './company/company.module';
+import { ActionModule } from './action/action.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { CompanyModule } from './company/company.module';
     UserModule,
     AuthModule,
     CompanyModule,
+    ActionModule,
   ],
   controllers: [AppController],
   providers: [AppService],

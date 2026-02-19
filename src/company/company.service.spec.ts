@@ -4,22 +4,25 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Company } from '../common/entities/company.entity';
 import { CompanyUser } from '../common/entities/company-user.entity';
 import { DataSource, Repository, DeleteResult } from 'typeorm';
-import { Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Logger, NotFoundException } from '@nestjs/common';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { CompanyRole, CompanyStatus } from '../utils/enums';
 import { mockUser } from '../mock/user-tests.mock';
 import {
   mockCompany,
   mockCompanyRepository,
+  mockCompanyUser,
   mockCompanyUserRepository,
   mockDataSource,
   mockEntityManager,
   mockQueryBuilder,
 } from '../mock/company-tests.mock';
+import { mockLogger } from '../mock/actions-tests.mock';
 
 describe('CompanyService', () => {
   let service: CompanyService;
   let companyRepo: Repository<Company>;
+  let companyUserRepo: Repository<CompanyUser>;
   let dataSource: DataSource;
 
   beforeEach(async () => {
@@ -38,16 +41,18 @@ describe('CompanyService', () => {
           provide: DataSource,
           useValue: mockDataSource,
         },
-        Logger,
+        {
+          provide: Logger,
+          useValue: mockLogger,
+        },
       ],
     }).compile();
 
     service = module.get<CompanyService>(CompanyService);
     companyRepo = module.get<Repository<Company>>(getRepositoryToken(Company));
+    companyUserRepo = module.get<Repository<CompanyUser>>(getRepositoryToken(CompanyUser));
     dataSource = module.get<DataSource>(DataSource);
-  });
 
-  afterEach(() => {
     jest.clearAllMocks();
   });
 
@@ -61,6 +66,8 @@ describe('CompanyService', () => {
 
       mockCompanyRepository.create.mockReturnValue(mockCompany);
       mockCompanyRepository.save.mockResolvedValue(mockCompany);
+      mockCompanyUserRepository.create.mockReturnValue(mockCompanyUser);
+      mockCompanyUserRepository.save.mockResolvedValue(mockCompanyUser);
 
       const result = await service.create(mockUser.id, createDto);
 
@@ -68,7 +75,15 @@ describe('CompanyService', () => {
       expect(mockEntityManager.getRepository).toHaveBeenCalledWith(Company);
       expect(mockEntityManager.getRepository).toHaveBeenCalledWith(CompanyUser);
 
+      expect(mockCompanyRepository.create).toHaveBeenCalledWith(createDto);
       expect(mockCompanyRepository.save).toHaveBeenCalledWith(mockCompany);
+      expect(mockCompanyUserRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          role: CompanyRole.OWNER,
+          user: { id: mockUser.id },
+        }),
+      );
+
       expect(result).toEqual(mockCompany);
     });
   });
@@ -85,10 +100,14 @@ describe('CompanyService', () => {
       const result = await service.findAll(query);
 
       expect(companyRepo.createQueryBuilder).toHaveBeenCalledWith('company');
+
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('company.status = :company_status'),
+        expect.anything(),
+      );
+
       expect(mockQueryBuilder.take).toHaveBeenCalledWith(10);
       expect(mockQueryBuilder.skip).toHaveBeenCalledWith(0);
-
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalled();
       expect(result).toEqual({ items: [mockCompany], totalCount: 1 });
     });
   });
@@ -100,11 +119,25 @@ describe('CompanyService', () => {
       const result = await service.findOneBy({ id: '1' });
 
       expect(companyRepo.findOne).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: '1' },
-        }),
+        expect.objectContaining({ where: { id: '1' } }),
       );
       expect(result).toEqual(mockCompany);
+    });
+
+    it('should filter invalid relations and warn logger', async () => {
+      mockCompanyRepository.findOne.mockResolvedValue(mockCompany);
+
+      await service.findOneBy({ id: '1' }, { relations: ['members', 'dangerousRelation'] });
+
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Blocked attempt to access invalid relations'),
+      );
+
+      expect(companyRepo.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          relations: ['members'],
+        }),
+      );
     });
 
     it('should return null if not found', async () => {
@@ -131,7 +164,6 @@ describe('CompanyService', () => {
 
     it('should throw NotFoundException if company does not exist', async () => {
       mockCompanyRepository.findOneBy.mockResolvedValue(null);
-
       await expect(service.updateBy({ id: '999' }, {})).rejects.toThrow(NotFoundException);
     });
   });
@@ -148,8 +180,98 @@ describe('CompanyService', () => {
 
     it('should throw NotFoundException if nothing was deleted', async () => {
       mockCompanyRepository.delete.mockResolvedValue({ affected: 0 } as DeleteResult);
-
       await expect(service.deleteBy({ id: '999' })).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('getCompanyUserRole', () => {
+    it('should return the role if member exists', async () => {
+      mockCompanyUserRepository.findOne.mockResolvedValue(mockCompanyUser);
+
+      const result = await service.getCompanyUserRole(mockUser.id, mockCompany.id);
+
+      expect(companyUserRepo.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { user: { id: mockUser.id }, company: { id: mockCompany.id } },
+        }),
+      );
+      expect(result).toEqual(CompanyRole.OWNER);
+    });
+
+    it('should throw NotFoundException if member not found', async () => {
+      mockCompanyUserRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.getCompanyUserRole(mockUser.id, mockCompany.id)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('addMember', () => {
+    it('should add a member if they do not exist', async () => {
+      mockCompanyUserRepository.findOne.mockResolvedValue(null);
+      mockCompanyUserRepository.save.mockResolvedValue(mockCompanyUser);
+
+      await service.addMember(mockCompany.id, mockUser.id);
+
+      expect(companyUserRepo.save).toHaveBeenCalledWith({
+        company: { id: mockCompany.id },
+        user: { id: mockUser.id },
+      });
+    });
+
+    it('should do nothing if member already exists', async () => {
+      mockCompanyUserRepository.findOne.mockResolvedValue(mockCompanyUser);
+
+      const result = await service.addMember(mockCompany.id, mockUser.id);
+
+      expect(companyUserRepo.save).not.toHaveBeenCalled();
+      expect(result).toBeUndefined();
+    });
+
+    it('should use provided EntityManager if passed', async () => {
+      mockCompanyUserRepository.findOne.mockResolvedValue(null);
+
+      await service.addMember(mockCompany.id, mockUser.id, mockEntityManager);
+
+      expect(mockEntityManager.getRepository).toHaveBeenCalledWith(CompanyUser);
+      expect(mockCompanyUserRepository.save).toHaveBeenCalled();
+    });
+  });
+
+  describe('deleteCompanyUsers', () => {
+    it('should throw BadRequestException if trying to delete an owner', async () => {
+      mockCompanyUserRepository.count.mockResolvedValue(1);
+
+      await expect(service.deleteCompanyUsers(mockCompany.id, ['owner-id'])).rejects.toThrow(
+        BadRequestException,
+      );
+
+      expect(companyUserRepo.count).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ role: CompanyRole.OWNER }),
+        }),
+      );
+      expect(companyUserRepo.delete).not.toHaveBeenCalled();
+    });
+
+    it('should delete users if valid and return result', async () => {
+      mockCompanyUserRepository.count.mockResolvedValue(0);
+      mockCompanyUserRepository.delete.mockResolvedValue({ affected: 2 } as DeleteResult);
+
+      const result = await service.deleteCompanyUsers(mockCompany.id, ['user-1', 'user-2']);
+
+      expect(companyUserRepo.delete).toHaveBeenCalled();
+      expect(result.affected).toEqual(2);
+    });
+
+    it('should throw NotFoundException if no users were affected', async () => {
+      mockCompanyUserRepository.count.mockResolvedValue(0);
+      mockCompanyUserRepository.delete.mockResolvedValue({ affected: 0 } as DeleteResult);
+
+      await expect(service.deleteCompanyUsers(mockCompany.id, ['user-1'])).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

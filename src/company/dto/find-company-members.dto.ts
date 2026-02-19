@@ -3,7 +3,7 @@ import { FindUserDto } from '../../user/dto/find-user.dto';
 import { CompanyRole } from '../../utils/enums';
 import { FindCompanyDto } from './find-company.dto';
 
-export class FindCompanyMembersFilterDto {
+export class FindCompanyMembersDto {
   @IsOptional()
   @IsEnum(CompanyRole)
   role?: CompanyRole;
