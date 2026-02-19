@@ -22,6 +22,8 @@ describe('CompanyController (e2e)', () => {
     }),
     updateBy: jest.fn().mockResolvedValue({ ...mockCompany, name: 'Updated Name' }),
     deleteBy: jest.fn().mockResolvedValue({ affected: 1 }),
+    updateCompanyUsersRole: jest.fn().mockResolvedValue({ success: true }),
+    addNewCompanyOwner: jest.fn().mockResolvedValue({ affected: 1 }),
     deleteCompanyUsers: jest.fn().mockResolvedValue({ affected: 1 }),
   };
 
@@ -145,6 +147,63 @@ describe('CompanyController (e2e)', () => {
         .expect(() => {
           expect(companyService.deleteBy).toHaveBeenCalledWith({ id: mockCompany.id });
         });
+    });
+  });
+
+  describe('PATCH /company/:companyId/users/:newRole', () => {
+    const userIds = [
+      '123e4567-e89b-12d3-a456-426614174001',
+      '123e4567-e89b-12d3-a456-426614174002',
+    ];
+
+    it('should update user roles to ADMIN', () => {
+      return request(app.getHttpServer())
+        .patch(`/company/${mockCompany.id}/users/admin`)
+        .send({ userIds })
+        .expect(200)
+        .expect(() => {
+          expect(companyService.updateCompanyUsersRole).toHaveBeenCalledWith(
+            mockCompany.id,
+            userIds,
+            'admin',
+          );
+        });
+    });
+
+    it('should fail with 400 if role is invalid enum', () => {
+      return request(app.getHttpServer())
+        .patch(`/company/${mockCompany.id}/users/super_god_mode`)
+        .send({ userIds })
+        .expect(400);
+    });
+
+    it('should fail with 400 if userIds body is invalid', () => {
+      return request(app.getHttpServer())
+        .patch(`/company/${mockCompany.id}/users/admin`)
+        .send({ userIds: ['not-a-uuid'] })
+        .expect(400);
+    });
+  });
+
+  describe('PATCH /company/:companyId/add/owner/:userId', () => {
+    const targetUserId = '123e4567-e89b-12d3-a456-426614174099';
+
+    it('should promote a member to owner', () => {
+      return request(app.getHttpServer())
+        .patch(`/company/${mockCompany.id}/add/owner/${targetUserId}`)
+        .expect(200)
+        .expect(() => {
+          expect(companyService.addNewCompanyOwner).toHaveBeenCalledWith(
+            mockCompany.id,
+            targetUserId,
+          );
+        });
+    });
+
+    it('should fail with 400 if userId is not a UUID', () => {
+      return request(app.getHttpServer())
+        .patch(`/company/${mockCompany.id}/add/owner/not-a-uuid`)
+        .expect(400);
     });
   });
 

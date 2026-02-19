@@ -139,6 +139,40 @@ export class CompanyService {
     });
   }
 
+  async updateCompanyUsersRole(companyId: string, userIds: string[], newRole: CompanyRole) {
+    if (newRole === CompanyRole.OWNER) {
+      throw new BadRequestException('Ownership cannot be transferred via bulk update.');
+    }
+
+    const existingMembersCount = await this.companyUserRepository.count({
+      where: { company: { id: companyId }, user: { id: In(userIds) } },
+    });
+
+    if (existingMembersCount !== userIds.length) {
+      throw new BadRequestException(`One or more users are not members of this company`);
+    }
+
+    await this.companyUserRepository.update(
+      { company: { id: companyId }, user: { id: In(userIds) } },
+      { role: newRole },
+    );
+
+    return { success: true, count: userIds.length };
+  }
+
+  async addNewCompanyOwner(companyId: string, userId: string) {
+    const result = await this.companyUserRepository.update(
+      { company: { id: companyId }, user: { id: userId } },
+      { role: CompanyRole.OWNER },
+    );
+
+    if (result.affected === 0) {
+      throw new NotFoundException('User is not a member of this company');
+    }
+
+    return result;
+  }
+
   async deleteCompanyUsers(companyId: string, userIds: string[]) {
     const ownersBeingKicked = await this.companyUserRepository.count({
       where: {

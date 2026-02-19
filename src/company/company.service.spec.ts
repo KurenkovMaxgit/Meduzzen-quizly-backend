@@ -3,7 +3,7 @@ import { CompanyService } from './company.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Company } from '../common/entities/company.entity';
 import { CompanyUser } from '../common/entities/company-user.entity';
-import { DataSource, Repository, DeleteResult } from 'typeorm';
+import { DataSource, Repository, DeleteResult, In } from 'typeorm';
 import { BadRequestException, Logger, NotFoundException } from '@nestjs/common';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { CompanyRole, CompanyStatus } from '../utils/enums';
@@ -236,6 +236,77 @@ describe('CompanyService', () => {
 
       expect(mockEntityManager.getRepository).toHaveBeenCalledWith(CompanyUser);
       expect(mockCompanyUserRepository.save).toHaveBeenCalled();
+    });
+  });
+
+  describe('updateCompanyUsersRole', () => {
+    it('should update roles for valid members', async () => {
+      mockCompanyUserRepository.count.mockResolvedValue(2);
+      mockCompanyUserRepository.update.mockResolvedValue({ affected: 2 });
+
+      const userIds = ['user-1', 'user-2'];
+      const result = await service.updateCompanyUsersRole(
+        mockCompany.id,
+        userIds,
+        CompanyRole.ADMIN,
+      );
+
+      expect(companyUserRepo.count).toHaveBeenCalledWith({
+        where: {
+          company: { id: mockCompany.id },
+          user: { id: In(userIds) },
+        },
+      });
+
+      expect(companyUserRepo.update).toHaveBeenCalledWith(
+        { company: { id: mockCompany.id }, user: { id: In(userIds) } },
+        { role: CompanyRole.ADMIN },
+      );
+
+      expect(result).toEqual({ success: true, count: 2 });
+    });
+
+    it('should throw BadRequestException if trying to set OWNER role', async () => {
+      await expect(
+        service.updateCompanyUsersRole(mockCompany.id, ['user-1'], CompanyRole.OWNER),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(companyUserRepo.count).not.toHaveBeenCalled();
+      expect(companyUserRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException if some users are not members', async () => {
+      mockCompanyUserRepository.count.mockResolvedValue(1);
+
+      const userIds = ['user-1', 'user-2'];
+
+      await expect(
+        service.updateCompanyUsersRole(mockCompany.id, userIds, CompanyRole.ADMIN),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(companyUserRepo.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('addNewCompanyOwner', () => {
+    it('should promote a member to owner if found', async () => {
+      mockCompanyUserRepository.update.mockResolvedValue({ affected: 1 });
+
+      const result = await service.addNewCompanyOwner(mockCompany.id, mockUser.id);
+
+      expect(companyUserRepo.update).toHaveBeenCalledWith(
+        { company: { id: mockCompany.id }, user: { id: mockUser.id } },
+        { role: CompanyRole.OWNER },
+      );
+      expect(result.affected).toBe(1);
+    });
+
+    it('should throw NotFoundException if user is not a member', async () => {
+      mockCompanyUserRepository.update.mockResolvedValue({ affected: 0 });
+
+      await expect(service.addNewCompanyOwner(mockCompany.id, 'non-member-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
