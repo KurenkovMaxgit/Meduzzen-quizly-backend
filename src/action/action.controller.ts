@@ -45,9 +45,8 @@ export class ActionController {
     @Param('companyId', ParseUUIDPipe) company: string,
     @Param('subject', ParseUUIDPipe) subject: string,
   ) {
-    return this.actionService.create(senderId, {
+    return this.actionService.create(senderId, company, {
       subject,
-      company,
       type: ActionType.INVITE,
     });
   }
@@ -90,9 +89,8 @@ export class ActionController {
     @CurrentUser('id') senderId: string,
     @Param('companyId', ParseUUIDPipe) company: string,
   ) {
-    return this.actionService.create(senderId, {
+    return this.actionService.create(senderId, company, {
       subject: senderId,
-      company,
       type: ActionType.REQUEST,
     });
   }

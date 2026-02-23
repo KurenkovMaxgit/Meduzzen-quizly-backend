@@ -28,11 +28,11 @@ export class ActionService {
     private readonly logger: Logger,
   ) {}
 
-  async create(createdBy: string, data: CreateActionDto): Promise<Action> {
+  async create(createdBy: string, companyId: string, data: CreateActionDto): Promise<Action> {
     const existing = await this.actionsRepository.findOne({
       where: {
         subject: { id: data.subject },
-        company: { id: data.company },
+        company: { id: companyId },
         status: In([ActionStatus.PENDING, ActionStatus.ACCEPTED]),
         type: data.type,
       },
@@ -45,7 +45,7 @@ export class ActionService {
     return this.actionsRepository.save({
       createdBy: { id: createdBy },
       subject: { id: data.subject },
-      company: { id: data.company },
+      company: { id: companyId },
       type: data.type,
     });
   }
