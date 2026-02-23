@@ -31,11 +31,12 @@ export enum ActionDecision {
 }
 
 export enum QuizQuestionType {
-  SCORED = 'scored',
+  SINGLE_CHOICE = 'single_choice',
+  MULTIPLE_CHOICE = 'multiple_choice',
   // SURVEY = 'survey'
 }
 
 export enum AnswerCorrectness {
   CORRECT = 'correct',
-  WRONG = 'wrong',
+  INCORRECT = 'incorrect',
 }
