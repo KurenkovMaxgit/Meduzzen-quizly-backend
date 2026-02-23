@@ -1,11 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ActionService, ActionDecision } from './action.service';
+import { ActionService } from './action.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Action } from '../common/entities/action.entity';
 import { CompanyService } from '../company/company.service';
 import { DataSource, Repository } from 'typeorm';
 import { Logger, BadRequestException, ForbiddenException } from '@nestjs/common';
-import { ActionStatus, ActionType } from '../utils/enums';
+import { ActionDecision, ActionStatus, ActionType } from '../utils/enums';
 import {
   mockActionRepository,
   mockQueryBuilder,
@@ -59,21 +59,20 @@ describe('ActionService', () => {
     it('should create an action if no pending action exists', async () => {
       const dto = {
         subject: 'user-123',
-        company: 'company-123',
         type: ActionType.INVITE,
       };
 
       mockActionRepository.findOne.mockResolvedValue(null);
       mockActionRepository.save.mockResolvedValue(mockAction);
 
-      const result = await service.create('creator-id', dto);
+      const result = await service.create('creator-id', 'company-123', dto);
 
       expect(repository.findOne).toHaveBeenCalled();
       expect(repository.save).toHaveBeenCalledWith(
         expect.objectContaining({
           createdBy: { id: 'creator-id' },
           subject: { id: dto.subject },
-          company: { id: dto.company },
+          company: { id: 'company-123' },
           type: dto.type,
         }),
       );
@@ -83,13 +82,14 @@ describe('ActionService', () => {
     it('should throw BadRequestException if pending action exists', async () => {
       const dto = {
         subject: 'user-123',
-        company: 'company-123',
         type: ActionType.INVITE,
       };
 
       mockActionRepository.findOne.mockResolvedValue(mockAction);
 
-      await expect(service.create('creator-id', dto)).rejects.toThrow(BadRequestException);
+      await expect(service.create('creator-id', 'company-123', dto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -154,7 +154,6 @@ describe('ActionService', () => {
 
       await service.manageInvite('action-123', mockUser.id, ActionDecision.ACCEPT);
 
-      // Should run inside transaction
       expect(mockDataSource.transaction).toHaveBeenCalled();
       expect(companyService.addMember).toHaveBeenCalledWith(
         mockCompany.id,

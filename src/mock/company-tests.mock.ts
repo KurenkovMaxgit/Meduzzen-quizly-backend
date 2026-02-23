@@ -60,7 +60,7 @@ export const mockEntityManager = {
     return null;
   }),
   save: jest.fn(),
-} as unknown as EntityManager;
+} as unknown as jest.Mocked<EntityManager>;
 
 export const mockDataSource = {
   transaction: jest.fn((cb) => cb(mockEntityManager)),
