@@ -6,28 +6,17 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import {
-  Repository,
-  FindOneOptions,
-  DeleteResult,
-  In,
-  DataSource,
-  FindOptionsWhere,
-} from 'typeorm';
+import { Repository, FindOneOptions, In, DataSource, FindOptionsWhere } from 'typeorm';
 import { Action } from '../common/entities/action.entity';
 import { applyQueryFilters } from '../utils/find-all-query-builder.util';
 import { PaginatedData } from '../utils/response.interface';
 import { CreateActionDto } from './dto/create-action.dto';
 import { FindAllActionsDto, FindActionDto } from './dto/find-action.dto';
-import { ActionStatus, ActionType } from '../utils/enums';
+import { ActionDecision, ActionStatus, ActionType } from '../utils/enums';
 import { CompanyService } from '../company/company.service';
 import { User } from '../common/entities/user.entity';
 
 const ALLOWED_ACTION_RELATIONS = ['createdBy', 'subject', 'company'];
-export enum ActionDecision {
-  ACCEPT = 'accept',
-  DECLINE = 'decline',
-}
 
 @Injectable()
 export class ActionService {

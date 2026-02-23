@@ -15,9 +15,9 @@ import { ApiTags, ApiBearerAuth, ApiResponse, ApiOperation } from '@nestjs/swagg
 import { JwtAuthGuard } from '../auth/guards/auth-jwt.guard';
 import { CompanyRolesGuard } from '../company/guards/company-role.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { ActionDecision, ActionService } from './action.service';
+import { ActionService } from './action.service';
 import { AllowedCompanyRoles } from '../common/decorators/company-roles.decorator';
-import { ActionType } from '../utils/enums';
+import { ActionDecision, ActionType } from '../utils/enums';
 import { FindAllActionsDto } from './dto/find-action.dto';
 
 @ApiTags('Actions')
