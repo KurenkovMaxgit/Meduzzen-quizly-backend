@@ -26,10 +26,12 @@ import { CompanyRolesGuard } from './guards/company-role.guard';
 import { FindOneQueryDto } from '../common/dto/find-one-query.dto';
 import { ParseUUIDArrayPipe } from '../common/pipes/parse-uuid-array.pipe';
 import { CompanyRole } from '../utils/enums';
+import { plainToInstance } from 'class-transformer';
 
 @ApiTags('Companies')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, CompanyRolesGuard)
+@UseInterceptors(ClassSerializerInterceptor)
 @Controller('company')
 export class CompanyController {
   constructor(private readonly companyService: CompanyService) {}
@@ -37,7 +39,6 @@ export class CompanyController {
   @ApiOperation({ summary: 'Creates company for authenticated user' })
   @ApiResponse({ status: 201, description: 'Created.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
-  @UseInterceptors(ClassSerializerInterceptor)
   @Post()
   async create(@CurrentUser('id') userId: string, @Body() data: CreateCompanyDto) {
     const company = await this.companyService.create(userId, data);
@@ -47,16 +48,18 @@ export class CompanyController {
   @ApiOperation({ summary: 'Get all companies by query parameters' })
   @ApiResponse({ status: 200, description: 'Success.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
-  @UseInterceptors(ClassSerializerInterceptor)
   @Get('list')
   async findAll(@Query() query: FindAllCompaniesDto) {
-    return await this.companyService.findAll(query);
+    const { items, totalCount } = await this.companyService.findAll(query);
+    return {
+      items: plainToInstance(ReturnCompanyDto, items),
+      totalCount,
+    };
   }
 
   @ApiOperation({ summary: 'Get one company by id' })
   @ApiResponse({ status: 200, description: 'Success.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
-  @UseInterceptors(ClassSerializerInterceptor)
   @Get(':companyId')
   async findOneById(
     @Param('companyId', ParseUUIDPipe) id: string,
@@ -69,8 +72,8 @@ export class CompanyController {
   @ApiOperation({ summary: 'Updates company by id' })
   @ApiResponse({ status: 200, description: 'Success.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
   @AllowedCompanyRoles(['owner', 'admin'])
-  @UseInterceptors(ClassSerializerInterceptor)
   @Patch(':companyId')
   async updateOneById(
     @Param('companyId', ParseUUIDPipe) id: string,
@@ -83,6 +86,7 @@ export class CompanyController {
   @ApiOperation({ summary: 'Deletes company by id.' })
   @ApiResponse({ status: 200, description: 'Success.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
   @AllowedCompanyRoles(['owner', 'admin'])
   @Delete(':companyId')
   async deleteOneById(@Param('companyId', ParseUUIDPipe) id: string) {
