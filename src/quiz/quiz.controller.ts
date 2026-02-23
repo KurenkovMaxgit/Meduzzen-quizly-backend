@@ -1,0 +1,90 @@
+import {
+  Body,
+  ClassSerializerInterceptor,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/guards/auth-jwt.guard';
+import { CompanyRolesGuard } from '../company/guards/company-role.guard';
+import { QuizService } from './quiz.service';
+import { CreateQuizDto } from './dto/quiz/create-quiz.dto';
+import { AllowedCompanyRoles } from '../common/decorators/company-roles.decorator';
+import { PrivateReturnQuizDto } from './dto/quiz/return-quiz.dto';
+import { FindAllQuizzesDto } from './dto/quiz/find-quiz.dto';
+import { UpdateQuizDto } from './dto/quiz/update-quiz.dto';
+import { plainToInstance } from 'class-transformer';
+
+@ApiTags('Quizzes')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, CompanyRolesGuard)
+@UseInterceptors(ClassSerializerInterceptor)
+@Controller('quiz')
+export class QuizController {
+  constructor(private readonly quizService: QuizService) {}
+
+  @ApiOperation({ summary: 'Creates quiz for authenticated company owner/admin.' })
+  @ApiResponse({ status: 201, description: 'Created.' })
+  @ApiResponse({ status: 400, description: 'Bad request.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
+  @AllowedCompanyRoles(['owner', 'admin'])
+  @Post('company/:companyId')
+  async create(@Param('companyId', ParseUUIDPipe) companyId: string, @Body() data: CreateQuizDto) {
+    const quiz = await this.quizService.create(companyId, data);
+    return new PrivateReturnQuizDto(quiz);
+  }
+
+  @ApiOperation({ summary: 'Get all quizzes by query parameters.' })
+  @ApiResponse({ status: 200, description: 'Success.' })
+  @ApiResponse({ status: 400, description: 'Bad request.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
+  @AllowedCompanyRoles(['owner', 'admin'])
+  @Get('company/:companyId/list')
+  async findAll(
+    @Param('companyId', ParseUUIDPipe) companyId: string,
+    @Query() query: FindAllQuizzesDto,
+  ) {
+    const { items, totalCount } = await this.quizService.findAll(companyId, query);
+
+    return {
+      items: plainToInstance(PrivateReturnQuizDto, items),
+      totalCount,
+    };
+  }
+
+  @ApiOperation({ summary: 'Updates quiz by id & company.' })
+  @ApiResponse({ status: 200, description: 'Success.' })
+  @ApiResponse({ status: 400, description: 'Bad request.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
+  @AllowedCompanyRoles(['owner', 'admin'])
+  @Put(':id/company/:companyId')
+  async updateOneById(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('companyId', ParseUUIDPipe) companyId: string,
+    @Body() data: UpdateQuizDto,
+  ) {
+    const updated = await this.quizService.updateBy({ id, company: { id: companyId } }, data);
+    return new PrivateReturnQuizDto(updated);
+  }
+
+  @ApiOperation({ summary: 'Deletes quiz by id & company.' })
+  @ApiResponse({ status: 200, description: 'Success.' })
+  @ApiResponse({ status: 400, description: 'Bad request.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
+  @AllowedCompanyRoles(['owner', 'admin'])
+  @Delete(':id/company/:companyId')
+  async deleteOneById(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('companyId', ParseUUIDPipe) companyId: string,
+  ) {
+    return await this.quizService.deleteBy({ id, company: { id: companyId } });
+  }
+}

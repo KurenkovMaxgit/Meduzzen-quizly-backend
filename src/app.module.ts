@@ -10,6 +10,7 @@ import { AppDataSource } from './utils/typeorm.datasource';
 import { AuthModule } from './auth/auth.module';
 import { CompanyModule } from './company/company.module';
 import { ActionModule } from './action/action.module';
+import { QuizModule } from './quiz/quiz.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { ActionModule } from './action/action.module';
     AuthModule,
     CompanyModule,
     ActionModule,
+    QuizModule,
   ],
   controllers: [AppController],
   providers: [AppService],
