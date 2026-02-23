@@ -5,7 +5,6 @@ import {
   Delete,
   Get,
   Param,
-  ParseArrayPipe,
   ParseEnumPipe,
   ParseUUIDPipe,
   Patch,
@@ -59,7 +58,7 @@ export class CompanyController {
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @UseInterceptors(ClassSerializerInterceptor)
   @Get(':companyId')
-  async findOneByIdWithMembers(
+  async findOneById(
     @Param('companyId', ParseUUIDPipe) id: string,
     @Query() query: FindOneQueryDto,
   ) {
