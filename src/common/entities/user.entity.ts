@@ -3,6 +3,7 @@ import { UserRole } from '../../utils/enums';
 import { BaseEntity } from './base.entity';
 import { CompanyUser } from './company-user.entity';
 import { Action } from './action.entity';
+import { QuizAttempt } from './attempt.entity';
 
 @Entity()
 export class User extends BaseEntity {
@@ -32,4 +33,7 @@ export class User extends BaseEntity {
 
   @OneToMany(() => Action, (action) => action.subject)
   receivedActions?: Action[];
+
+  @OneToMany(() => QuizAttempt, (attempt) => attempt.user)
+  attempts?: QuizAttempt[];
 }
