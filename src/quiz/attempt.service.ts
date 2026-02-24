@@ -39,6 +39,12 @@ export class AttemptService {
 
       const userSubmittedIds = data.userAnswers[question.id] || [];
 
+      if (question.type === 'single_choice' && userSubmittedIds.length > 1) {
+        throw new BadRequestException(
+          `Question ${question.id} is single-choice, but multiple answers were provided.`,
+        );
+      }
+
       const submittedAnswerSnapshots = question.answers
         .filter((answer) => userSubmittedIds.includes(answer.id))
         .map((answer) => ({
