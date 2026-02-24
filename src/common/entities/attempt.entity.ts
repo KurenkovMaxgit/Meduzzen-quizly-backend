@@ -27,7 +27,7 @@ export class QuizAttempt extends BaseEntity {
   @Column('varchar', { length: 250 })
   quizTitleSnapshot!: string;
 
-  @Column('int')
+  @Column('decimal', { precision: 10, scale: 2 })
   correctAnswersCount!: number;
 
   @Column('int')

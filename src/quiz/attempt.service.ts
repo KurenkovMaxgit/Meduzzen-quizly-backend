@@ -28,7 +28,7 @@ export class AttemptService {
       throw new BadRequestException('Cannot attempt a quiz with no questions.');
     }
 
-    let correctAnswersCount = 0;
+    let totalScore = 0;
     const userAnswersSnapshot: QuestionAttemptSnapshot[] = [];
 
     for (const question of quiz.questions) {
@@ -52,12 +52,27 @@ export class AttemptService {
         submittedAnswers: submittedAnswerSnapshots,
       });
 
-      const isCorrect =
-        correctAnswerIds.length === userSubmittedIds.length &&
-        correctAnswerIds.every((id) => userSubmittedIds.includes(id));
+      const totalCorrectOptions = correctAnswerIds.length;
 
-      if (isCorrect) {
-        correctAnswersCount++;
+      let correctlySelected = 0;
+      let incorrectlySelected = 0;
+
+      for (const id of userSubmittedIds) {
+        if (correctAnswerIds.includes(id)) {
+          correctlySelected++;
+        } else {
+          incorrectlySelected++;
+        }
+      }
+
+      if (totalCorrectOptions > 0) {
+        let questionScore = (correctlySelected - incorrectlySelected) / totalCorrectOptions;
+
+        if (questionScore < 0) {
+          questionScore = 0;
+        }
+
+        totalScore += questionScore;
       }
     }
 
@@ -66,7 +81,7 @@ export class AttemptService {
       company: { id: companyId },
       quiz: { id: quizId },
       quizTitleSnapshot: quiz.title,
-      correctAnswersCount,
+      correctAnswersCount: totalScore,
       totalQuestionsCount: quiz.questions.length,
       userAnswers: userAnswersSnapshot,
     });
