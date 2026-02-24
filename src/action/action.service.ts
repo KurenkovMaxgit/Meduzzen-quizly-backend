@@ -6,28 +6,17 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import {
-  Repository,
-  FindOneOptions,
-  DeleteResult,
-  In,
-  DataSource,
-  FindOptionsWhere,
-} from 'typeorm';
+import { Repository, FindOneOptions, In, DataSource, FindOptionsWhere } from 'typeorm';
 import { Action } from '../common/entities/action.entity';
 import { applyQueryFilters } from '../utils/find-all-query-builder.util';
 import { PaginatedData } from '../utils/response.interface';
 import { CreateActionDto } from './dto/create-action.dto';
 import { FindAllActionsDto, FindActionDto } from './dto/find-action.dto';
-import { ActionStatus, ActionType } from '../utils/enums';
+import { ActionDecision, ActionStatus, ActionType } from '../utils/enums';
 import { CompanyService } from '../company/company.service';
 import { User } from '../common/entities/user.entity';
 
 const ALLOWED_ACTION_RELATIONS = ['createdBy', 'subject', 'company'];
-export enum ActionDecision {
-  ACCEPT = 'accept',
-  DECLINE = 'decline',
-}
 
 @Injectable()
 export class ActionService {
@@ -39,11 +28,11 @@ export class ActionService {
     private readonly logger: Logger,
   ) {}
 
-  async create(createdBy: string, data: CreateActionDto): Promise<Action> {
+  async create(createdBy: string, companyId: string, data: CreateActionDto): Promise<Action> {
     const existing = await this.actionsRepository.findOne({
       where: {
         subject: { id: data.subject },
-        company: { id: data.company },
+        company: { id: companyId },
         status: In([ActionStatus.PENDING, ActionStatus.ACCEPTED]),
         type: data.type,
       },
@@ -56,7 +45,7 @@ export class ActionService {
     return this.actionsRepository.save({
       createdBy: { id: createdBy },
       subject: { id: data.subject },
-      company: { id: data.company },
+      company: { id: companyId },
       type: data.type,
     });
   }

@@ -20,15 +20,16 @@ import { User } from '../common/entities/user.entity';
 import { ReturnUserDto } from './dto/return-user.dto';
 import { FindAllUsersDto } from './dto/find-user.dto';
 import { FindOneQueryDto } from '../common/dto/find-one-query.dto';
+import { plainToInstance } from 'class-transformer';
 
 @ApiTags('Users')
 @ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
+@UseInterceptors(ClassSerializerInterceptor)
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @UseGuards(JwtAuthGuard)
-  @UseInterceptors(ClassSerializerInterceptor)
   @Get('me')
   findProfile(@CurrentUser() user: User) {
     return new ReturnUserDto(user);
@@ -43,10 +44,14 @@ export class UserController {
   })
   @ApiResponse({ status: 200, description: 'Success.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
-  @UseGuards(JwtAuthGuard)
   @Get('list')
   async findAll(@Query() query: FindAllUsersDto) {
-    return await this.userService.findAll(query);
+    const { items, totalCount } = await this.userService.findAll(query);
+
+    return {
+      items: plainToInstance(ReturnUserDto, items),
+      totalCount,
+    };
   }
 
   @ApiOperation({
@@ -55,9 +60,6 @@ export class UserController {
   })
   @ApiResponse({ status: 200, description: 'Success.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
-  @ApiResponse({ status: 404, description: 'Not found.' })
-  @UseGuards(JwtAuthGuard)
-  @UseInterceptors(ClassSerializerInterceptor)
   @Get(':id')
   async findOneById(@Param('id', ParseUUIDPipe) id: string, @Query() query: FindOneQueryDto) {
     const user = await this.userService.findOneBy({ id }, { relations: query.relations });
@@ -71,7 +73,6 @@ export class UserController {
   @ApiResponse({ status: 200, description: 'Success.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 404, description: 'Not found.' })
-  @UseGuards(JwtAuthGuard)
   @UseInterceptors(ClassSerializerInterceptor)
   @Patch()
   async updateOneById(@CurrentUser('id') id: string, @Body() data: UpdateUserDto) {
@@ -84,7 +85,6 @@ export class UserController {
   @ApiResponse({ status: 200, description: 'Success.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 404, description: 'Not found.' })
-  @UseGuards(JwtAuthGuard)
   @Delete()
   async deleteOneById(@CurrentUser('id') id: string) {
     return await this.userService.deleteBy({ id });

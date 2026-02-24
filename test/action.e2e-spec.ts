@@ -2,10 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe, ExecutionContext } from '@nestjs/common';
 import request from 'supertest';
 import { ActionController } from '../src/action/action.controller';
-import { ActionService, ActionDecision } from '../src/action/action.service';
+import { ActionService } from '../src/action/action.service';
 import { JwtAuthGuard } from '../src/auth/guards/auth-jwt.guard';
 import { CompanyRolesGuard } from '../src/company/guards/company-role.guard';
-import { ActionStatus, ActionType } from '../src/utils/enums';
+import { ActionDecision, ActionStatus, ActionType } from '../src/utils/enums';
 import { mockUser } from '../src/mock/user-tests.mock';
 import { mockCompany } from '../src/mock/company-tests.mock';
 
@@ -79,9 +79,9 @@ describe('ActionController (e2e)', () => {
           expect(res.body.id).toEqual(mockAction.id);
           expect(actionService.create).toHaveBeenCalledWith(
             mockUser.id,
+            mockCompany.id,
             expect.objectContaining({
               subject: targetUserId,
-              company: mockCompany.id,
               type: ActionType.INVITE,
             }),
           );
@@ -133,9 +133,9 @@ describe('ActionController (e2e)', () => {
         .expect((res) => {
           expect(actionService.create).toHaveBeenCalledWith(
             mockUser.id,
+            mockCompany.id,
             expect.objectContaining({
               subject: mockUser.id,
-              company: mockCompany.id,
               type: ActionType.REQUEST,
             }),
           );

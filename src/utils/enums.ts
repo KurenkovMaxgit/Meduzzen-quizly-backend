@@ -24,3 +24,19 @@ export enum ActionStatus {
   ACCEPTED = 'accepted',
   DECLINED = 'declined',
 }
+
+export enum ActionDecision {
+  ACCEPT = 'accept',
+  DECLINE = 'decline',
+}
+
+export enum QuizQuestionType {
+  SINGLE_CHOICE = 'single_choice',
+  MULTIPLE_CHOICE = 'multiple_choice',
+  // SURVEY = 'survey'
+}
+
+export enum AnswerCorrectness {
+  CORRECT = 'correct',
+  INCORRECT = 'incorrect',
+}

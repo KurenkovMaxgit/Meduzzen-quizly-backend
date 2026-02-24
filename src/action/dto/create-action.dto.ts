@@ -5,9 +5,6 @@ export class CreateActionDto {
   @IsUUID()
   subject!: string;
 
-  @IsUUID()
-  company!: string;
-
   @IsEnum(ActionType)
   type!: ActionType;
 }
