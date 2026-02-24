@@ -5,6 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { QuizService } from './quiz.service';
 import { AnswerCorrectness } from '../utils/enums';
 import { CreateAttemptDto } from './dto/attempt/create-attempt.dto';
+import { QuestionAttemptSnapshot } from '../common/interfaces/question-attempt-snapshot.interface';
 
 @Injectable()
 export class AttemptService {
