@@ -73,7 +73,7 @@ export class CompanyController {
   @ApiResponse({ status: 200, description: 'Success.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  @AllowedCompanyRoles(['owner', 'admin'])
+  @AllowedCompanyRoles([CompanyRole.OWNER, CompanyRole.ADMIN])
   @Patch(':companyId')
   async updateOneById(
     @Param('companyId', ParseUUIDPipe) id: string,
@@ -87,7 +87,7 @@ export class CompanyController {
   @ApiResponse({ status: 200, description: 'Success.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  @AllowedCompanyRoles(['owner', 'admin'])
+  @AllowedCompanyRoles([CompanyRole.OWNER, CompanyRole.ADMIN])
   @Delete(':companyId')
   async deleteOneById(@Param('companyId', ParseUUIDPipe) id: string) {
     return await this.companyService.deleteBy({ id });
@@ -97,7 +97,7 @@ export class CompanyController {
   @ApiResponse({ status: 200, description: 'Success.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  @AllowedCompanyRoles(['owner'])
+  @AllowedCompanyRoles([CompanyRole.OWNER])
   @Patch(':companyId/users/:newRole')
   async updateRoles(
     @Param('companyId', ParseUUIDPipe) id: string,
@@ -111,7 +111,7 @@ export class CompanyController {
   @ApiResponse({ status: 200, description: 'Success.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  @AllowedCompanyRoles(['owner'])
+  @AllowedCompanyRoles([CompanyRole.OWNER])
   @Patch(':companyId/add/owner/:userId')
   async addNewOwner(
     @Param('companyId', ParseUUIDPipe) id: string,
@@ -135,7 +135,7 @@ export class CompanyController {
   @ApiResponse({ status: 200, description: 'Success.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  @AllowedCompanyRoles(['owner'])
+  @AllowedCompanyRoles([CompanyRole.OWNER])
   @Delete(':companyId/users')
   async kickUsers(
     @Param('companyId', ParseUUIDPipe) id: string,

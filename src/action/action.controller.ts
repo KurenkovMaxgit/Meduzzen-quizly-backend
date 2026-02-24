@@ -17,7 +17,7 @@ import { CompanyRolesGuard } from '../company/guards/company-role.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ActionService } from './action.service';
 import { AllowedCompanyRoles } from '../common/decorators/company-roles.decorator';
-import { ActionDecision, ActionType } from '../utils/enums';
+import { ActionDecision, ActionType, CompanyRole } from '../utils/enums';
 import { FindAllActionsDto } from './dto/find-action.dto';
 
 @ApiTags('Actions')
@@ -38,7 +38,7 @@ export class ActionController {
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @UseInterceptors(ClassSerializerInterceptor)
-  @AllowedCompanyRoles(['owner', 'admin'])
+  @AllowedCompanyRoles([CompanyRole.OWNER, CompanyRole.ADMIN])
   @Post('invite/:subject/to/:companyId')
   async inviteUser(
     @CurrentUser('id') senderId: string,
@@ -128,7 +128,7 @@ export class ActionController {
     return this.actionService.findAll(query, { subject: { id: userId }, type });
   }
 
-  @AllowedCompanyRoles(['owner', 'admin'])
+  @AllowedCompanyRoles([CompanyRole.OWNER, CompanyRole.ADMIN])
   @Get('list/:companyId/:actionType')
   async getCompanyActions(
     @Param('companyId', ParseUUIDPipe) companyId: string,
