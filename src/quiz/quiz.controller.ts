@@ -5,6 +5,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseEnumPipe,
   ParseUUIDPipe,
   Post,
   Put,
@@ -18,10 +19,11 @@ import { CompanyRolesGuard } from '../company/guards/company-role.guard';
 import { QuizService } from './quiz.service';
 import { CreateQuizDto } from './dto/quiz/create-quiz.dto';
 import { AllowedCompanyRoles } from '../common/decorators/company-roles.decorator';
-import { PrivateReturnQuizDto } from './dto/quiz/return-quiz.dto';
+import { PrivateReturnQuizDto, PublicReturnQuizDto } from './dto/quiz/return-quiz.dto';
 import { FindAllQuizzesDto } from './dto/quiz/find-quiz.dto';
 import { UpdateQuizDto } from './dto/quiz/update-quiz.dto';
 import { plainToInstance } from 'class-transformer';
+import { FindOneQueryDto } from '../common/dto/find-one-query.dto';
 
 @ApiTags('Quizzes')
 @ApiBearerAuth()
@@ -58,6 +60,42 @@ export class QuizController {
       items: plainToInstance(PrivateReturnQuizDto, items),
       totalCount,
     };
+  }
+
+  @ApiOperation({ summary: 'Get private quiz by id.' })
+  @ApiResponse({ status: 200, description: 'Success.' })
+  @ApiResponse({ status: 400, description: 'Bad request.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
+  @AllowedCompanyRoles(['owner', 'admin'])
+  @Get(':id/company/:companyId/private')
+  async findOnePrivateById(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('companyId', ParseUUIDPipe) companyId: string,
+    @Query() query: FindOneQueryDto,
+  ) {
+    const quiz = await this.quizService.findOneBy(
+      { id, company: { id: companyId } },
+      { relations: query.relations },
+    );
+    return quiz ? new PrivateReturnQuizDto(quiz) : null;
+  }
+
+  @ApiOperation({ summary: 'Get public quiz by id.' })
+  @ApiResponse({ status: 200, description: 'Success.' })
+  @ApiResponse({ status: 400, description: 'Bad request.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
+  @AllowedCompanyRoles(['owner', 'admin', 'member'])
+  @Get(':id/company/:companyId/public')
+  async findOnePublicById(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('companyId', ParseUUIDPipe) companyId: string,
+    @Query() query: FindOneQueryDto,
+  ) {
+    const quiz = await this.quizService.findOneBy(
+      { id, company: { id: companyId } },
+      { relations: query.relations },
+    );
+    return quiz ? new PublicReturnQuizDto(quiz) : null;
   }
 
   @ApiOperation({ summary: 'Updates quiz by id & company.' })
