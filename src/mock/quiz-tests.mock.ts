@@ -46,6 +46,7 @@ export const mockQuizRepository = {
 export const mockQuizService = {
   create: jest.fn().mockResolvedValue(mockQuiz),
   findAll: jest.fn().mockResolvedValue({ items: [mockQuiz], totalCount: 1 }),
+  findOneBy: jest.fn().mockResolvedValue(mockQuiz),
   updateBy: jest.fn().mockResolvedValue({ ...mockQuiz, title: 'Updated' }),
   deleteBy: jest.fn().mockResolvedValue({ affected: 1 }),
 };

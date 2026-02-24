@@ -127,6 +127,42 @@ describe('QuizController (e2e)', () => {
     });
   });
 
+  describe('GET /quiz/:id/company/:companyId/private', () => {
+    it('should return the quiz for owners/admins', () => {
+      return request(app.getHttpServer())
+        .get(`/quiz/${mockQuiz.id}/company/${mockCompany.id}/private`)
+        .expect(200)
+        .expect((res) => {
+          expect(res.body.id).toEqual(mockQuiz.id);
+          expect(quizService.findOneBy).toHaveBeenCalledWith(
+            { id: mockQuiz.id, company: { id: mockCompany.id } },
+            expect.anything(),
+          );
+        });
+    });
+
+    it('should fail with 400 if UUIDs are invalid', () => {
+      return request(app.getHttpServer())
+        .get(`/quiz/invalid-uuid/company/${mockCompany.id}/private`)
+        .expect(400);
+    });
+  });
+
+  describe('GET /quiz/:id/company/:companyId/public', () => {
+    it('should return the quiz for general members', () => {
+      return request(app.getHttpServer())
+        .get(`/quiz/${mockQuiz.id}/company/${mockCompany.id}/public`)
+        .expect(200)
+        .expect((res) => {
+          expect(res.body.id).toEqual(mockQuiz.id);
+          expect(quizService.findOneBy).toHaveBeenCalledWith(
+            { id: mockQuiz.id, company: { id: mockCompany.id } },
+            expect.anything(),
+          );
+        });
+    });
+  });
+
   describe('PUT /quiz/:id/company/:companyId', () => {
     it('should update the quiz', () => {
       const updateDto = {
