@@ -1,8 +1,10 @@
 export interface QuestionAttemptSnapshot {
   questionId: string;
   prompt: string;
-  submittedAnswers: {
+  userAnswers: {
     answerId: string;
     content: string;
+    isCorrect: boolean;
   }[];
+  wasQuestionAnsweredCorrectly: number;
 }
