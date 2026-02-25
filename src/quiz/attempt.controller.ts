@@ -3,9 +3,12 @@ import {
   ClassSerializerInterceptor,
   Controller,
   Get,
+  Header,
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
+  Res,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
@@ -18,6 +21,10 @@ import { CreateAttemptDto } from './dto/attempt/create-attempt.dto';
 import { AllowedCompanyRoles } from '../common/decorators/company-roles.decorator';
 import { CompanyRole } from '../utils/enums';
 import { User } from '../common/entities/user.entity';
+import { ReturnAttemptDto } from './dto/attempt/return-attempt.dto';
+import { plainToInstance } from 'class-transformer';
+import { FindAllAttemptsDto } from './dto/attempt/find-attempt.dto';
+import type { Response } from 'express';
 
 @ApiTags('Quiz Attempts')
 @ApiBearerAuth()
@@ -62,5 +69,62 @@ export class AttemptController {
     const rating = await this.attemptService.getUserRating(userId);
 
     return { rating };
+  }
+
+  @ApiOperation({ summary: 'Get all attempts by query parameters.' })
+  @ApiResponse({ status: 200, description: 'Success.' })
+  @ApiResponse({ status: 400, description: 'Bad request.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
+  @AllowedCompanyRoles([CompanyRole.OWNER, CompanyRole.ADMIN])
+  @Get('company/:companyId/list')
+  async findAll(
+    @Param('companyId', ParseUUIDPipe) companyId: string,
+    @Query() query: FindAllAttemptsDto,
+  ) {
+    const { items, totalCount } = await this.attemptService.findAll(companyId, query);
+
+    return {
+      items: plainToInstance(ReturnAttemptDto, items),
+      totalCount,
+    };
+  }
+
+  @ApiOperation({ summary: 'Get a specific quiz attempt.' })
+  @ApiResponse({ status: 200, description: 'Success.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
+  @AllowedCompanyRoles([CompanyRole.OWNER, CompanyRole.ADMIN, CompanyRole.MEMBER])
+  @Get(':attemptId/company/:companyId')
+  async getSingleAttempt(
+    @CurrentUser('id') userId: string,
+    @Param('attemptId', ParseUUIDPipe) attemptId: string,
+    @Param('companyId', ParseUUIDPipe) companyId: string,
+  ) {
+    return this.attemptService.findOneBy({
+      id: attemptId,
+      user: { id: userId },
+      company: { id: companyId },
+    });
+  }
+
+  @ApiOperation({ summary: 'Export quiz attempts as a CSV file.' })
+  @ApiResponse({ status: 200, description: 'Success.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
+  @AllowedCompanyRoles([CompanyRole.OWNER, CompanyRole.ADMIN])
+  @Get('company/:companyId/quiz/:quizId/export')
+  @Header('Content-Type', 'text/csv')
+  @Header('Content-Disposition', 'attachment; filename="quiz-attempts.csv"')
+  async exportAttemptsCsv(
+    @Param('companyId', ParseUUIDPipe) companyId: string,
+    @Param('quizId', ParseUUIDPipe) quizId: string,
+    @Res() res: Response,
+  ) {
+    const csvBuffer = await this.attemptService.exportAttemptsToCsv(companyId, quizId);
+
+    res.set({
+      'Content-Type': 'text/csv',
+      'Content-Disposition': 'attachment; filename="quiz-attempts.csv"',
+    });
+
+    res.send(csvBuffer);
   }
 }
