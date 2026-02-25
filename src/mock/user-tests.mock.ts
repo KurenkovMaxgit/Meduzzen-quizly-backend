@@ -1,9 +1,12 @@
+import { UserRole } from '../utils/enums';
+
 export const mockUser = {
   id: 'f77314d7-8429-49f8-a719-b0cdd54bade4',
   email: 'example@test.com',
   passwordHash: 'hashed_password',
   firstName: 'John',
   lastName: 'Doe',
+  role: UserRole.USER,
   refreshToken: 'some_refresh_token',
   createdAt: new Date(),
   updatedAt: new Date(),

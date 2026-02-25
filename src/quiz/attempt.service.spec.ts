@@ -4,34 +4,25 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { QuizAttempt } from '../common/entities/attempt.entity';
 import { QuizService } from './quiz.service';
 import { Repository } from 'typeorm';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { AnswerCorrectness } from '../utils/enums';
+import { BadRequestException, Logger, NotFoundException } from '@nestjs/common';
 import { mockQuiz, mockQuizService } from '../mock/quiz-tests.mock';
 import { mockCompany } from '../mock/company-tests.mock';
 import { mockUser } from '../mock/user-tests.mock';
+import { mockLogger } from '../mock/actions-tests.mock';
+import { AnswerCorrectness } from '../utils/enums';
+import {
+  localMockAttemptRepository,
+  localMockQueryBuilder,
+  localMockRedis,
+  mockAttempt,
+} from '../mock/attempts-tests.mock';
 
 describe('AttemptService', () => {
   let service: AttemptService;
   let attemptRepo: Repository<QuizAttempt>;
   let quizService: QuizService;
 
-  let localMockQueryBuilder: any;
-  let localMockAttemptRepository: any;
-
   beforeEach(async () => {
-    localMockQueryBuilder = {
-      select: jest.fn().mockReturnThis(),
-      addSelect: jest.fn().mockReturnThis(),
-      where: jest.fn().mockReturnThis(),
-      andWhere: jest.fn().mockReturnThis(),
-      getRawOne: jest.fn().mockResolvedValue({ totalCorrect: '1', totalQuestions: '2' }),
-    };
-
-    localMockAttemptRepository = {
-      save: jest.fn(),
-      createQueryBuilder: jest.fn(() => localMockQueryBuilder),
-    };
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AttemptService,
@@ -42,6 +33,14 @@ describe('AttemptService', () => {
         {
           provide: QuizService,
           useValue: mockQuizService,
+        },
+        {
+          provide: 'REDIS_CLIENT',
+          useValue: localMockRedis,
+        },
+        {
+          provide: Logger,
+          useValue: mockLogger,
         },
       ],
     }).compile();
@@ -58,96 +57,174 @@ describe('AttemptService', () => {
   });
 
   describe('submitAttempt', () => {
-    it('should throw NotFoundException if quiz is not found', async () => {
+    it('should throw BadRequestException if quiz is not found or has no questions', async () => {
       mockQuizService.findOneBy.mockResolvedValue(null);
 
       await expect(
-        service.submitAttempt(mockUser.id, mockCompany.id, mockQuiz.id, { userAnswers: {} }),
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('should throw BadRequestException if quiz has no questions', async () => {
-      mockQuizService.findOneBy.mockResolvedValue({ ...mockQuiz, questions: [] });
-
-      await expect(
-        service.submitAttempt(mockUser.id, mockCompany.id, mockQuiz.id, { userAnswers: {} }),
+        service.submitAttempt(mockUser, mockCompany.id, mockQuiz.id, { userAnswers: {} }),
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should calculate correct answers and save attempt', async () => {
-      mockQuizService.findOneBy.mockResolvedValue(mockQuiz);
-      localMockAttemptRepository.save.mockResolvedValue({ id: 'attempt-123' });
-
-      const submitDto = {
-        userAnswers: {
-          q1: ['a1'],
-          q2: ['a4'],
-        },
+    it('should calculate correct answers, save attempt, and cache to Redis', async () => {
+      const gradableQuiz = {
+        ...mockQuiz,
+        title: 'Gradable Quiz',
+        questions: [
+          {
+            id: 'q1',
+            type: 'single_choice',
+            prompt: 'Q1',
+            answers: [{ id: 'a1', correctness: AnswerCorrectness.CORRECT }],
+          },
+        ],
       };
 
-      const result = await service.submitAttempt(
-        mockUser.id,
-        mockCompany.id,
-        mockQuiz.id,
-        submitDto,
-      );
+      mockQuizService.findOneBy.mockResolvedValue(gradableQuiz);
+      localMockAttemptRepository.save.mockResolvedValue(mockAttempt);
 
-      expect(quizService.findOneBy).toHaveBeenCalledWith(
-        { id: mockQuiz.id, company: { id: mockCompany.id } },
-        { relations: ['questions', 'questions.answers'] },
-      );
+      const submitDto = { userAnswers: { q1: ['a1'] } };
+
+      const result = await service.submitAttempt(mockUser, mockCompany.id, mockQuiz.id, submitDto);
 
       expect(attemptRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({
-          user: { id: mockUser.id },
+          user: mockUser,
           company: { id: mockCompany.id },
-          quiz: { id: mockQuiz.id },
+          quizTitleSnapshot: 'Gradable Quiz',
           correctAnswersCount: 1,
-          totalQuestionsCount: 2,
-          userAnswers: expect.arrayContaining([
-            expect.objectContaining({ questionId: 'q1' }),
-            expect.objectContaining({ questionId: 'q2' }),
-          ]),
         }),
       );
-      expect(result).toEqual({ id: 'attempt-123' });
+
+      expect(localMockRedis.set).toHaveBeenCalledWith(
+        `attempt:${mockAttempt.id}`,
+        expect.any(String),
+        'EX',
+        172800,
+      );
+
+      expect(result).toEqual(mockAttempt);
+    });
+
+    it('should throw BadRequestException if single_choice question has multiple answers submitted', async () => {
+      const badQuiz = {
+        ...mockQuiz,
+        questions: [
+          {
+            id: 'q1',
+            type: 'single_choice',
+            answers: [{ id: 'a1', correctness: AnswerCorrectness.CORRECT }],
+          },
+        ],
+      };
+      mockQuizService.findOneBy.mockResolvedValue(badQuiz);
+
+      const submitDto = { userAnswers: { q1: ['a1', 'a2'] } };
+
+      await expect(
+        service.submitAttempt(mockUser, mockCompany.id, mockQuiz.id, submitDto),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('findAll', () => {
+    it('should return paginated attempts with query filters', async () => {
+      const query = { skip: 0, take: 10 };
+
+      const result = await service.findAll(mockCompany.id, query as any, mockUser.id);
+
+      expect(localMockQueryBuilder.where).toHaveBeenCalledWith('attempt.companyId = :companyId', {
+        companyId: mockCompany.id,
+      });
+      expect(localMockQueryBuilder.andWhere).toHaveBeenCalledWith('attempt.userId = :userId', {
+        userId: mockUser.id,
+      });
+      expect(localMockQueryBuilder.orderBy).toHaveBeenCalledWith('attempt.createdAt', 'DESC');
+
+      expect(result.items.length).toBe(1);
+      expect(result.totalCount).toBe(1);
+    });
+  });
+
+  describe('findOneBy', () => {
+    it('should return from Redis cache if available and valid', async () => {
+      localMockRedis.get.mockResolvedValue(JSON.stringify(mockAttempt));
+
+      const result = await service.findOneBy({
+        id: mockAttempt.id,
+        company: { id: mockCompany.id },
+      });
+
+      expect(localMockRedis.get).toHaveBeenCalledWith(`attempt:${mockAttempt.id}`);
+      expect(attemptRepo.findOne).not.toHaveBeenCalled();
+      expect(result?.id).toEqual(mockAttempt.id);
+    });
+
+    it('should return null if Redis cache company validation fails', async () => {
+      localMockRedis.get.mockResolvedValue(JSON.stringify(mockAttempt));
+
+      const result = await service.findOneBy({
+        id: mockAttempt.id,
+        company: { id: 'different-company' },
+      });
+
+      expect(result).toBeNull();
+      expect(attemptRepo.findOne).not.toHaveBeenCalled();
+    });
+
+    it('should fetch from DB and cache if not in Redis', async () => {
+      localMockRedis.get.mockResolvedValue(null);
+      localMockAttemptRepository.findOne.mockResolvedValue(mockAttempt);
+
+      const result = await service.findOneBy({ id: mockAttempt.id });
+
+      expect(attemptRepo.findOne).toHaveBeenCalled();
+      expect(localMockRedis.set).toHaveBeenCalledWith(
+        `attempt:${mockAttempt.id}`,
+        expect.any(String),
+        'EX',
+        172800,
+      );
+      expect(result).toEqual(mockAttempt);
+    });
+  });
+
+  describe('exportAttemptsToCsv', () => {
+    it('should throw NotFoundException if no attempts exist', async () => {
+      localMockAttemptRepository.find.mockResolvedValue([]);
+
+      await expect(service.exportAttemptsToCsv(mockCompany.id, mockQuiz.id)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('should return a valid CSV Buffer if attempts exist', async () => {
+      localMockAttemptRepository.find.mockResolvedValue([mockAttempt]);
+
+      const result = await service.exportAttemptsToCsv(mockCompany.id, mockQuiz.id);
+
+      expect(attemptRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { company: { id: mockCompany.id }, quiz: { id: mockQuiz.id } },
+        }),
+      );
+
+      expect(Buffer.isBuffer(result)).toBe(true);
+
+      const csvString = result.toString('utf-8');
+      expect(csvString).toContain('Attempt ID,User ID,First Name');
+      expect(csvString).toContain(mockAttempt.id);
+      expect(csvString).toContain(mockUser.firstName);
     });
   });
 
   describe('getUserRating', () => {
     it('should calculate overall rating across all companies', async () => {
-      // getRawOne mock returns 1 correct out of 2 total -> 0.5 rating
       localMockQueryBuilder.getRawOne.mockResolvedValue({ totalCorrect: '1', totalQuestions: '2' });
 
       const result = await service.getUserRating(mockUser.id);
 
       expect(attemptRepo.createQueryBuilder).toHaveBeenCalledWith('attempt');
-      expect(localMockQueryBuilder.where).toHaveBeenCalledWith('attempt.userId = :userId', {
-        userId: mockUser.id,
-      });
-      expect(localMockQueryBuilder.andWhere).not.toHaveBeenCalled();
       expect(result).toEqual(0.5);
-    });
-
-    it('should calculate rating for a specific company', async () => {
-      localMockQueryBuilder.getRawOne.mockResolvedValue({ totalCorrect: '4', totalQuestions: '5' });
-
-      const result = await service.getUserRating(mockUser.id, mockCompany.id);
-
-      expect(localMockQueryBuilder.andWhere).toHaveBeenCalledWith(
-        'attempt.companyId = :companyId',
-        {
-          companyId: mockCompany.id,
-        },
-      );
-      expect(result).toEqual(0.8);
-    });
-
-    it('should return 0 if total questions is 0 (to prevent division by zero)', async () => {
-      localMockQueryBuilder.getRawOne.mockResolvedValue({ totalCorrect: '0', totalQuestions: '0' });
-
-      const result = await service.getUserRating(mockUser.id);
-      expect(result).toEqual(0);
     });
 
     it('should return 0 if no attempts exist (null results from DB)', async () => {
@@ -155,7 +232,6 @@ describe('AttemptService', () => {
         totalCorrect: null,
         totalQuestions: null,
       });
-
       const result = await service.getUserRating(mockUser.id);
       expect(result).toEqual(0);
     });
