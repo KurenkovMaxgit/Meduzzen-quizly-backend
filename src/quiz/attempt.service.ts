@@ -1,10 +1,11 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Repository } from 'typeorm';
-import { QuestionAttemptSnapshot, QuizAttempt } from '../common/entities/attempt.entity';
+import { QuizAttempt } from '../common/entities/attempt.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { QuizService } from './quiz.service';
 import { AnswerCorrectness } from '../utils/enums';
 import { CreateAttemptDto } from './dto/attempt/create-attempt.dto';
+import Redis from 'ioredis';
 import { QuestionAttemptSnapshot } from '../common/interfaces/question-attempt-snapshot.interface';
 
 @Injectable()
@@ -13,6 +14,7 @@ export class AttemptService {
     @InjectRepository(QuizAttempt)
     private readonly attemptRepository: Repository<QuizAttempt>,
     private readonly quizService: QuizService,
+    @Inject('REDIS_CLIENT') private readonly redis: Redis,
   ) {}
 
   async submitAttempt(userId: string, companyId: string, quizId: string, data: CreateAttemptDto) {
@@ -31,6 +33,13 @@ export class AttemptService {
 
     let totalScore = 0;
     const userAnswersSnapshot: QuestionAttemptSnapshot[] = [];
+
+    const redisPayload = {
+      userId,
+      companyId,
+      quizId,
+      questions: [] as any[],
+    };
 
     for (const question of quiz.questions) {
       const correctAnswers = question.answers.filter(
@@ -72,8 +81,10 @@ export class AttemptService {
         }
       }
 
+      let questionScore = 0;
+
       if (totalCorrectOptions > 0) {
-        let questionScore = (correctlySelected - incorrectlySelected) / totalCorrectOptions;
+        questionScore = (correctlySelected - incorrectlySelected) / totalCorrectOptions;
 
         if (questionScore < 0) {
           questionScore = 0;
@@ -81,9 +92,20 @@ export class AttemptService {
 
         totalScore += questionScore;
       }
+
+      redisPayload.questions.push({
+        questionId: question.id,
+        prompt: question.prompt,
+        userAnswers: submittedAnswerSnapshots.map((a) => ({
+          answerId: a.answerId,
+          content: a.content,
+          isCorrect: correctAnswerIds.includes(a.answerId),
+        })),
+        wasQuestionAnsweredCorrectly: questionScore,
+      });
     }
 
-    return this.attemptRepository.save({
+    const savedAttempt = await this.attemptRepository.save({
       user: { id: userId },
       company: { id: companyId },
       quiz: { id: quizId },
@@ -92,6 +114,16 @@ export class AttemptService {
       totalQuestionsCount: quiz.questions.length,
       userAnswers: userAnswersSnapshot,
     });
+
+    const redisKey = `attempt:${companyId}:${quizId}:${userId}`;
+
+    const TTL_SECONDS = 48 * 60 * 60;
+
+    this.redis.set(redisKey, JSON.stringify(redisPayload), 'EX', TTL_SECONDS).catch((error) => {
+      console.error('Failed to save attempt to Redis:', error);
+    });
+
+    return savedAttempt;
   }
 
   async getUserRating(userId: string, companyId?: string): Promise<number> {
