@@ -1,5 +1,8 @@
 import { Exclude, Expose, Type } from 'class-transformer';
-import { PrivateReturnQuestionDto, PublicReturnQuestionDto } from '../question/return-question.dto';
+import {
+  PublicReturnQuestionDto,
+  PrivateReturnQuestionDto,
+} from '../question/dto/question/return-question.dto';
 
 @Exclude()
 export class PublicReturnQuizDto {

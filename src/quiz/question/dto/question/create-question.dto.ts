@@ -1,5 +1,5 @@
 import { ArrayMinSize, IsEnum, IsString, Length, ValidateNested } from 'class-validator';
-import { QuizQuestionType } from '../../../utils/enums';
+import { QuizQuestionType } from '../../../../utils/enums';
 import { CreateAnswerDto } from '../answer/create-answer.dto';
 import { Type } from 'class-transformer';
 

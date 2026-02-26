@@ -1,21 +1,21 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AttemptService } from './attempt.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { QuizAttempt } from '../common/entities/attempt.entity';
-import { QuizService } from './quiz.service';
+import { QuizAttempt } from '../../common/entities/attempt.entity';
+import { QuizService } from '../quiz.service';
 import { Repository } from 'typeorm';
 import { BadRequestException, Logger, NotFoundException } from '@nestjs/common';
-import { mockQuiz, mockQuizService } from '../mock/quiz-tests.mock';
-import { mockCompany } from '../mock/company-tests.mock';
-import { mockUser } from '../mock/user-tests.mock';
-import { mockLogger } from '../mock/actions-tests.mock';
-import { AnswerCorrectness } from '../utils/enums';
+import { mockQuiz, mockQuizService } from '../../mock/quiz-tests.mock';
+import { mockCompany } from '../../mock/company-tests.mock';
+import { mockUser } from '../../mock/user-tests.mock';
+import { mockLogger } from '../../mock/actions-tests.mock';
+import { AnswerCorrectness } from '../../utils/enums';
 import {
   localMockAttemptRepository,
   localMockQueryBuilder,
   localMockRedis,
   mockAttempt,
-} from '../mock/attempts-tests.mock';
+} from '../../mock/attempts-tests.mock';
 
 describe('AttemptService', () => {
   let service: AttemptService;
@@ -214,26 +214,6 @@ describe('AttemptService', () => {
       expect(csvString).toContain('Attempt ID,User ID,First Name');
       expect(csvString).toContain(mockAttempt.id);
       expect(csvString).toContain(mockUser.firstName);
-    });
-  });
-
-  describe('getUserRating', () => {
-    it('should calculate overall rating across all companies', async () => {
-      localMockQueryBuilder.getRawOne.mockResolvedValue({ totalCorrect: '1', totalQuestions: '2' });
-
-      const result = await service.getUserRating(mockUser.id);
-
-      expect(attemptRepo.createQueryBuilder).toHaveBeenCalledWith('attempt');
-      expect(result).toEqual(0.5);
-    });
-
-    it('should return 0 if no attempts exist (null results from DB)', async () => {
-      localMockQueryBuilder.getRawOne.mockResolvedValue({
-        totalCorrect: null,
-        totalQuestions: null,
-      });
-      const result = await service.getUserRating(mockUser.id);
-      expect(result).toEqual(0);
     });
   });
 });

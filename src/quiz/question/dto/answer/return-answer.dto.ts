@@ -1,5 +1,5 @@
 import { Exclude, Expose } from 'class-transformer';
-import { AnswerCorrectness } from '../../../utils/enums';
+import { AnswerCorrectness } from '../../../../utils/enums';
 
 @Exclude()
 export class PublicReturnAnswerDto {

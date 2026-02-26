@@ -1,5 +1,5 @@
 import { Exclude, Expose, Type } from 'class-transformer';
-import { QuizQuestionType } from '../../../utils/enums';
+import { QuizQuestionType } from '../../../../utils/enums';
 import { PublicReturnAnswerDto, PrivateReturnAnswerDto } from '../answer/return-answer.dto';
 
 @Exclude()

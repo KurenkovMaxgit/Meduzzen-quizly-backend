@@ -1,7 +1,7 @@
 import { Exclude, Expose, Transform, Type } from 'class-transformer';
 import { ReturnUserDto } from '../../../user/dto/return-user.dto';
 import { QuestionAttemptSnapshot } from '../../../common/interfaces/question-attempt-snapshot.interface';
-import { PublicReturnQuizDto } from '../quiz/return-quiz.dto';
+import { PublicReturnQuizDto } from '../../dto/return-quiz.dto';
 
 @Exclude()
 export class ReturnAttemptDto {

@@ -1,18 +1,18 @@
 import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { FindOneOptions, Repository } from 'typeorm';
-import { QuizAttempt } from '../common/entities/attempt.entity';
+import { QuizAttempt } from '../../common/entities/attempt.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { QuizService } from './quiz.service';
-import { AnswerCorrectness } from '../utils/enums';
-import { CreateAttemptDto } from './dto/attempt/create-attempt.dto';
+import { QuizService } from '../quiz.service';
+import { AnswerCorrectness } from '../../utils/enums';
+import { CreateAttemptDto } from './dto/create-attempt.dto';
 import Redis from 'ioredis';
-import { QuestionAttemptSnapshot } from '../common/interfaces/question-attempt-snapshot.interface';
-import { User } from '../common/entities/user.entity';
+import { QuestionAttemptSnapshot } from '../../common/interfaces/question-attempt-snapshot.interface';
+import { User } from '../../common/entities/user.entity';
 import { plainToInstance } from 'class-transformer';
-import { applyQueryFilters } from '../utils/find-all-query-builder.util';
-import { ReturnAttemptDto } from './dto/attempt/return-attempt.dto';
-import { FindAllAttemptsDto, FindAttemptDto } from './dto/attempt/find-attempt.dto';
-import { PaginatedData } from '../utils/response.interface';
+import { applyQueryFilters } from '../../utils/find-all-query-builder.util';
+import { ReturnAttemptDto } from './dto/return-attempt.dto';
+import { FindAllAttemptsDto, FindAttemptDto } from './dto/find-attempt.dto';
+import { PaginatedData } from '../../utils/response.interface';
 
 const ALLOWED_ATTEMPT_RELATIONS = ['user', 'quiz'];
 
@@ -132,27 +132,6 @@ export class AttemptService {
     }
 
     return attempt;
-  }
-
-  async getUserRating(userId: string, companyId?: string): Promise<number> {
-    const qb = this.attemptsRepository
-      .createQueryBuilder('attempt')
-      .select('SUM(attempt.correctAnswersCount)', 'totalCorrect')
-      .addSelect('SUM(attempt.totalQuestionsCount)', 'totalQuestions')
-      .where('attempt.userId = :userId', { userId });
-
-    if (companyId) {
-      qb.andWhere('attempt.companyId = :companyId', { companyId });
-    }
-
-    const result = await qb.getRawOne();
-
-    const correct = Number(result.totalCorrect) || 0;
-    const total = Number(result.totalQuestions) || 0;
-
-    if (total === 0) return 0;
-
-    return correct / total;
   }
 
   private gradeAnswers(questions: any[], userSubmittedAnswers: Record<string, string[]>) {
