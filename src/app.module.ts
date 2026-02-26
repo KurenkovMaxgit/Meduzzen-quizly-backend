@@ -12,6 +12,8 @@ import { CompanyModule } from './company/company.module';
 import { ActionModule } from './action/action.module';
 import { QuizModule } from './quiz/quiz.module';
 import { RedisModule } from './redis/redis.module';
+import { NotificationModule } from './notification/notification.module';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 @Module({
   imports: [
@@ -25,12 +27,14 @@ import { RedisModule } from './redis/redis.module';
         ...AppDataSource.options,
       }),
     }),
+    EventEmitterModule.forRoot(),
     UserModule,
     AuthModule,
     CompanyModule,
     ActionModule,
     QuizModule,
     RedisModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [AppService],
