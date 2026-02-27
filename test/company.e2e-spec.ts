@@ -5,39 +5,15 @@ import { CompanyController } from '../src/company/company.controller';
 import { CompanyService } from '../src/company/company.service';
 import { JwtAuthGuard } from '../src/auth/guards/auth-jwt.guard';
 import { CompanyRolesGuard } from '../src/company/guards/company-role.guard';
-import { mockCompany } from '../src/mock/company-tests.mock';
+import { mockCompany, mockCompanyService } from '../src/mock/company-tests.mock';
 import { mockUser } from '../src/mock/user-tests.mock';
 import { CreateCompanyDto } from '../src/company/dto/create-company.dto';
+import { mockCompanyRolesGuard, mockJwtAuthGuard } from '../src/mock/auth-tests.mock';
 
 describe('CompanyController (e2e)', () => {
   let app: INestApplication;
   let companyService: CompanyService;
-
-  const mockCompanyService = {
-    create: jest.fn().mockResolvedValue(mockCompany),
-    findAll: jest.fn().mockResolvedValue({ items: [mockCompany], totalCount: 1 }),
-    findOneBy: jest.fn().mockImplementation((where) => {
-      if (where.id === mockCompany.id) return Promise.resolve(mockCompany);
-      return Promise.resolve(null);
-    }),
-    updateBy: jest.fn().mockResolvedValue({ ...mockCompany, name: 'Updated Name' }),
-    deleteBy: jest.fn().mockResolvedValue({ affected: 1 }),
-    updateCompanyUsersRole: jest.fn().mockResolvedValue({ success: true }),
-    addNewCompanyOwner: jest.fn().mockResolvedValue({ affected: 1 }),
-    deleteCompanyUsers: jest.fn().mockResolvedValue({ affected: 1 }),
-  };
-
-  const mockJwtAuthGuard = {
-    canActivate: (context: ExecutionContext) => {
-      const req = context.switchToHttp().getRequest();
-      req.user = mockUser;
-      return true;
-    },
-  };
-
-  const mockCompanyRolesGuard = {
-    canActivate: () => true,
-  };
+  const baseUrl = `/company`;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -75,7 +51,7 @@ describe('CompanyController (e2e)', () => {
       };
 
       return request(app.getHttpServer())
-        .post('/company')
+        .post(baseUrl)
         .send(createDto)
         .expect(201)
         .expect((res) => {
@@ -88,14 +64,14 @@ describe('CompanyController (e2e)', () => {
     });
 
     it('should fail with 400 on invalid data', () => {
-      return request(app.getHttpServer()).post('/company').send({ name: '' }).expect(400);
+      return request(app.getHttpServer()).post(baseUrl).send({ name: '' }).expect(400);
     });
   });
 
   describe('GET /company/list', () => {
     it('should return paginated companies', () => {
       return request(app.getHttpServer())
-        .get('/company/list')
+        .get(`${baseUrl}/list`)
         .query({ take: 10, skip: 0 })
         .expect(200)
         .expect((res) => {
@@ -105,11 +81,11 @@ describe('CompanyController (e2e)', () => {
         });
     });
   });
-
+  ``;
   describe('GET /company/:id', () => {
     it('should return a company by valid UUID', () => {
       return request(app.getHttpServer())
-        .get(`/company/${mockCompany.id}`)
+        .get(`${baseUrl}/${mockCompany.id}`)
         .expect(200)
         .expect((res) => {
           expect(res.body.id).toEqual(mockCompany.id);
@@ -126,7 +102,7 @@ describe('CompanyController (e2e)', () => {
       const updateDto = { name: 'Updated Name' };
 
       return request(app.getHttpServer())
-        .patch(`/company/${mockCompany.id}`)
+        .patch(`${baseUrl}/${mockCompany.id}`)
         .send(updateDto)
         .expect(200)
         .expect((res) => {
@@ -142,7 +118,7 @@ describe('CompanyController (e2e)', () => {
   describe('DELETE /company/:id', () => {
     it('should delete the company', () => {
       return request(app.getHttpServer())
-        .delete(`/company/${mockCompany.id}`)
+        .delete(`${baseUrl}/${mockCompany.id}`)
         .expect(200)
         .expect(() => {
           expect(companyService.deleteBy).toHaveBeenCalledWith({ id: mockCompany.id });
@@ -158,7 +134,7 @@ describe('CompanyController (e2e)', () => {
 
     it('should update user roles to ADMIN', () => {
       return request(app.getHttpServer())
-        .patch(`/company/${mockCompany.id}/users/admin`)
+        .patch(`${baseUrl}/${mockCompany.id}/users/admin`)
         .send({ userIds })
         .expect(200)
         .expect(() => {
@@ -172,14 +148,14 @@ describe('CompanyController (e2e)', () => {
 
     it('should fail with 400 if role is invalid enum', () => {
       return request(app.getHttpServer())
-        .patch(`/company/${mockCompany.id}/users/super_god_mode`)
+        .patch(`${baseUrl}/${mockCompany.id}/users/super_god_mode`)
         .send({ userIds })
         .expect(400);
     });
 
     it('should fail with 400 if userIds body is invalid', () => {
       return request(app.getHttpServer())
-        .patch(`/company/${mockCompany.id}/users/admin`)
+        .patch(`${baseUrl}/${mockCompany.id}/users/admin`)
         .send({ userIds: ['not-a-uuid'] })
         .expect(400);
     });
@@ -190,7 +166,7 @@ describe('CompanyController (e2e)', () => {
 
     it('should promote a member to owner', () => {
       return request(app.getHttpServer())
-        .patch(`/company/${mockCompany.id}/add/owner/${targetUserId}`)
+        .patch(`${baseUrl}/${mockCompany.id}/add/owner/${targetUserId}`)
         .expect(200)
         .expect(() => {
           expect(companyService.addNewCompanyOwner).toHaveBeenCalledWith(
@@ -202,7 +178,7 @@ describe('CompanyController (e2e)', () => {
 
     it('should fail with 400 if userId is not a UUID', () => {
       return request(app.getHttpServer())
-        .patch(`/company/${mockCompany.id}/add/owner/not-a-uuid`)
+        .patch(`${baseUrl}/${mockCompany.id}/add/owner/not-a-uuid`)
         .expect(400);
     });
   });
@@ -210,7 +186,7 @@ describe('CompanyController (e2e)', () => {
   describe('DELETE /company/leave/:companyId', () => {
     it('should allow user to leave company', () => {
       return request(app.getHttpServer())
-        .delete(`/company/leave/${mockCompany.id}`)
+        .delete(`${baseUrl}/leave/${mockCompany.id}`)
         .expect(200)
         .expect(() => {
           expect(companyService.deleteCompanyUsers).toHaveBeenCalledWith(mockCompany.id, [
@@ -228,7 +204,7 @@ describe('CompanyController (e2e)', () => {
 
     it('should kick provided users', () => {
       return request(app.getHttpServer())
-        .delete(`/company/${mockCompany.id}/users`)
+        .delete(`${baseUrl}/${mockCompany.id}/users`)
         .send({ userIds: userIdsToKick })
         .expect(200)
         .expect(() => {
@@ -241,14 +217,14 @@ describe('CompanyController (e2e)', () => {
 
     it('should fail with 400 if userIds is not an array (Pipe Validation)', () => {
       return request(app.getHttpServer())
-        .delete(`/company/${mockCompany.id}/users`)
+        .delete(`${baseUrl}/${mockCompany.id}/users`)
         .send({ userIds: 'not-an-array' })
         .expect(400);
     });
 
     it('should fail with 400 if userIds contains invalid UUIDs (Pipe Validation)', () => {
       return request(app.getHttpServer())
-        .delete(`/company/${mockCompany.id}/users`)
+        .delete(`${baseUrl}/${mockCompany.id}/users`)
         .send({ userIds: ['valid-uuid', 'invalid-uuid'] })
         .expect(400);
     });

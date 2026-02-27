@@ -8,14 +8,13 @@ import { BadRequestException, Logger, NotFoundException } from '@nestjs/common';
 import { mockQuiz, mockQuizService } from '../../mock/quiz-tests.mock';
 import { mockCompany } from '../../mock/company-tests.mock';
 import { mockUser } from '../../mock/user-tests.mock';
-import { mockLogger } from '../../mock/actions-tests.mock';
 import { AnswerCorrectness } from '../../utils/enums';
 import {
-  localMockAttemptRepository,
-  localMockQueryBuilder,
-  localMockRedis,
+  mockAttemptRepository,
+  mockAttemptQueryBuilder,
   mockAttempt,
 } from '../../mock/attempts-tests.mock';
+import { mockRedis, mockLogger } from '../../mock/common-tests.mock';
 
 describe('AttemptService', () => {
   let service: AttemptService;
@@ -28,7 +27,7 @@ describe('AttemptService', () => {
         AttemptService,
         {
           provide: getRepositoryToken(QuizAttempt),
-          useValue: localMockAttemptRepository,
+          useValue: mockAttemptRepository,
         },
         {
           provide: QuizService,
@@ -36,7 +35,7 @@ describe('AttemptService', () => {
         },
         {
           provide: 'REDIS_CLIENT',
-          useValue: localMockRedis,
+          useValue: mockRedis,
         },
         {
           provide: Logger,
@@ -80,7 +79,7 @@ describe('AttemptService', () => {
       };
 
       mockQuizService.findOneBy.mockResolvedValue(gradableQuiz);
-      localMockAttemptRepository.save.mockResolvedValue(mockAttempt);
+      mockAttemptRepository.save.mockResolvedValue(mockAttempt);
 
       const submitDto = { userAnswers: { q1: ['a1'] } };
 
@@ -95,7 +94,7 @@ describe('AttemptService', () => {
         }),
       );
 
-      expect(localMockRedis.set).toHaveBeenCalledWith(
+      expect(mockRedis.set).toHaveBeenCalledWith(
         `attempt:${mockAttempt.id}`,
         expect.any(String),
         'EX',
@@ -132,13 +131,13 @@ describe('AttemptService', () => {
 
       const result = await service.findAll(mockCompany.id, query as any, mockUser.id);
 
-      expect(localMockQueryBuilder.where).toHaveBeenCalledWith('attempt.companyId = :companyId', {
+      expect(mockAttemptQueryBuilder.where).toHaveBeenCalledWith('attempt.companyId = :companyId', {
         companyId: mockCompany.id,
       });
-      expect(localMockQueryBuilder.andWhere).toHaveBeenCalledWith('attempt.userId = :userId', {
+      expect(mockAttemptQueryBuilder.andWhere).toHaveBeenCalledWith('attempt.userId = :userId', {
         userId: mockUser.id,
       });
-      expect(localMockQueryBuilder.orderBy).toHaveBeenCalledWith('attempt.createdAt', 'DESC');
+      expect(mockAttemptQueryBuilder.orderBy).toHaveBeenCalledWith('attempt.createdAt', 'DESC');
 
       expect(result.items.length).toBe(1);
       expect(result.totalCount).toBe(1);
@@ -147,20 +146,20 @@ describe('AttemptService', () => {
 
   describe('findOneBy', () => {
     it('should return from Redis cache if available and valid', async () => {
-      localMockRedis.get.mockResolvedValue(JSON.stringify(mockAttempt));
+      mockRedis.get.mockResolvedValue(JSON.stringify(mockAttempt));
 
       const result = await service.findOneBy({
         id: mockAttempt.id,
         company: { id: mockCompany.id },
       });
 
-      expect(localMockRedis.get).toHaveBeenCalledWith(`attempt:${mockAttempt.id}`);
+      expect(mockRedis.get).toHaveBeenCalledWith(`attempt:${mockAttempt.id}`);
       expect(attemptRepo.findOne).not.toHaveBeenCalled();
       expect(result?.id).toEqual(mockAttempt.id);
     });
 
     it('should return null if Redis cache company validation fails', async () => {
-      localMockRedis.get.mockResolvedValue(JSON.stringify(mockAttempt));
+      mockRedis.get.mockResolvedValue(JSON.stringify(mockAttempt));
 
       const result = await service.findOneBy({
         id: mockAttempt.id,
@@ -172,13 +171,13 @@ describe('AttemptService', () => {
     });
 
     it('should fetch from DB and cache if not in Redis', async () => {
-      localMockRedis.get.mockResolvedValue(null);
-      localMockAttemptRepository.findOne.mockResolvedValue(mockAttempt);
+      mockRedis.get.mockResolvedValue(null);
+      mockAttemptRepository.findOne.mockResolvedValue(mockAttempt);
 
       const result = await service.findOneBy({ id: mockAttempt.id });
 
       expect(attemptRepo.findOne).toHaveBeenCalled();
-      expect(localMockRedis.set).toHaveBeenCalledWith(
+      expect(mockRedis.set).toHaveBeenCalledWith(
         `attempt:${mockAttempt.id}`,
         expect.any(String),
         'EX',
@@ -190,7 +189,7 @@ describe('AttemptService', () => {
 
   describe('exportAttemptsToCsv', () => {
     it('should throw NotFoundException if no attempts exist', async () => {
-      localMockAttemptRepository.find.mockResolvedValue([]);
+      mockAttemptRepository.find.mockResolvedValue([]);
 
       await expect(service.exportAttemptsToCsv(mockCompany.id, mockQuiz.id)).rejects.toThrow(
         NotFoundException,
@@ -198,7 +197,7 @@ describe('AttemptService', () => {
     });
 
     it('should return a valid CSV Buffer if attempts exist', async () => {
-      localMockAttemptRepository.find.mockResolvedValue([mockAttempt]);
+      mockAttemptRepository.find.mockResolvedValue([mockAttempt]);
 
       const result = await service.exportAttemptsToCsv(mockCompany.id, mockQuiz.id);
 

@@ -13,7 +13,7 @@ export const mockAttempt = {
   createdAt: new Date('2026-02-25T12:00:00Z'),
 };
 
-export const localMockQueryBuilder = {
+export const mockAttemptQueryBuilder = {
   alias: 'attempt',
   take: jest.fn().mockReturnThis(),
   skip: jest.fn().mockReturnThis(),
@@ -26,17 +26,11 @@ export const localMockQueryBuilder = {
   getManyAndCount: jest.fn().mockResolvedValue([[mockAttempt], 1]),
 };
 
-export const localMockAttemptRepository = {
+export const mockAttemptRepository = {
   save: jest.fn(),
   find: jest.fn(),
   findOne: jest.fn(),
-  createQueryBuilder: jest.fn(() => localMockQueryBuilder),
-};
-
-export const localMockRedis = {
-  get: jest.fn(),
-  set: jest.fn(),
-  del: jest.fn(),
+  createQueryBuilder: jest.fn(() => mockAttemptQueryBuilder),
 };
 
 export const mockAttemptService = {

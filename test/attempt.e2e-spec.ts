@@ -13,6 +13,7 @@ import { AttemptService } from '../src/quiz/attempt/attempt.service';
 describe('AttemptController (e2e)', () => {
   let app: INestApplication;
   let attemptService: AttemptService;
+  const baseUrl = `/attempt`;
 
   const mockJwtAuthGuard = {
     canActivate: (context: ExecutionContext) => {
@@ -63,7 +64,7 @@ describe('AttemptController (e2e)', () => {
 
     it('should submit an attempt', () => {
       return request(app.getHttpServer())
-        .post(`/attempt/company/${mockCompany.id}/quiz/${mockQuiz.id}`)
+        .post(`${baseUrl}/company/${mockCompany.id}/quiz/${mockQuiz.id}`)
         .send(createAttemptDto)
         .expect(201)
         .expect((res) => {
@@ -79,7 +80,7 @@ describe('AttemptController (e2e)', () => {
 
     it('should fail with 400 if UUIDs are invalid', () => {
       return request(app.getHttpServer())
-        .post(`/attempt/company/invalid-company/quiz/${mockQuiz.id}`)
+        .post(`${baseUrl}/company/invalid-company/quiz/${mockQuiz.id}`)
         .send(createAttemptDto)
         .expect(400);
     });
@@ -88,7 +89,7 @@ describe('AttemptController (e2e)', () => {
   describe('GET /attempt/company/:companyId/list', () => {
     it('should return a paginated list of attempts', () => {
       return request(app.getHttpServer())
-        .get(`/attempt/company/${mockCompany.id}/list`)
+        .get(`${baseUrl}/company/${mockCompany.id}/list`)
         .query({ skip: 0, take: 10 })
         .expect(200)
         .expect((res) => {
@@ -100,7 +101,7 @@ describe('AttemptController (e2e)', () => {
     });
 
     it('should fail with 400 if company UUID is invalid', () => {
-      return request(app.getHttpServer()).get(`/attempt/company/invalid-uuid/list`).expect(400);
+      return request(app.getHttpServer()).get(`${baseUrl}/company/invalid-uuid/list`).expect(400);
     });
   });
 
@@ -109,7 +110,7 @@ describe('AttemptController (e2e)', () => {
       const attemptId = '7c2f6b40-4fd5-45d2-a153-324189e7ef6c';
 
       return request(app.getHttpServer())
-        .get(`/attempt/${attemptId}/company/${mockCompany.id}`)
+        .get(`${baseUrl}/${attemptId}/company/${mockCompany.id}`)
         .expect(200)
         .expect(() => {
           expect(attemptService.findOneBy).toHaveBeenCalledWith({
@@ -124,7 +125,7 @@ describe('AttemptController (e2e)', () => {
   describe('GET /attempt/company/:companyId/quiz/:quizId/export', () => {
     it('should export attempts as a CSV buffer', () => {
       return request(app.getHttpServer())
-        .get(`/attempt/company/${mockCompany.id}/quiz/${mockQuiz.id}/export`)
+        .get(`${baseUrl}/company/${mockCompany.id}/quiz/${mockQuiz.id}/export`)
         .expect(200)
         .expect('Content-Type', 'text/csv; charset=utf-8')
         .expect('Content-Disposition', 'attachment; filename="quiz-attempts.csv"')
