@@ -43,15 +43,11 @@ export class NotificationService {
       status: NotificationStatus.UNREAD,
     }));
 
-    await this.notificationsRepository
-      .createQueryBuilder()
-      .insert()
-      .into(Notification)
-      .values(notificationsToInsert)
-      .execute();
+    const savedNotifications = await this.notificationsRepository.save(notificationsToInsert);
 
-    const userIds = company.members.map((member) => member.user.id);
-    this.eventEmitter.emit('ws.send_notification', { userIds });
+    this.eventEmitter.emit('ws.send_notification', {
+      notifications: savedNotifications,
+    });
   }
 
   async findAll(

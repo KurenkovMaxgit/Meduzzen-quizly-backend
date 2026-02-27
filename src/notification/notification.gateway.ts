@@ -7,8 +7,8 @@ import {
 import { Server, Socket } from 'socket.io';
 import { OnEvent } from '@nestjs/event-emitter';
 import { Injectable, Logger } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { AuthService } from '../auth/auth.service';
+import { Notification } from '../common/entities/notification.entity';
 
 @Injectable()
 @WebSocketGateway({
@@ -50,11 +50,14 @@ export class NotificationGateway implements OnGatewayConnection, OnGatewayDiscon
   }
 
   @OnEvent('ws.send_notification')
-  handleLiveNotificationPing(payload: { userIds: string[] }) {
-    payload.userIds.forEach((userId) => {
-      this.server.to(`user_${userId}`).emit('new_notification', {
-        event: 'REFETCH_NOTIFICATIONS',
-        timestamp: new Date().toISOString(),
+  handleLiveNotificationPing(payload: { notifications: Notification[] }) {
+    payload.notifications.forEach((notification) => {
+      this.server.to(`user_${notification.user.id}`).emit('new_notification', {
+        id: notification.id,
+        text: notification.text,
+        type: notification.type,
+        metadata: notification.metadata,
+        createdAt: notification.createdAt,
       });
     });
   }
