@@ -1,11 +1,12 @@
 name: Quizly CD
 
 on:
-  workflow_dispatch:
   workflow_run:
     workflows: ['Quizly CI']
     types: [completed]
     branches: [main]
+  push:
+    branches: ['**']
 
 jobs:
   deploy:
