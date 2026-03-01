@@ -1,9 +1,10 @@
-import { Column, Entity, ManyToOne, OneToMany } from 'typeorm';
+import { Column, Entity, ManyToOne, OneToMany, Unique } from 'typeorm';
 import { BaseEntity } from './base.entity';
 import { QuizQuestion } from './question.entity';
 import { Company } from './company.entity';
 
 @Entity()
+@Unique(['title', 'company'])
 export class Quiz extends BaseEntity {
   @Column('varchar', { length: 250 })
   title!: string;
