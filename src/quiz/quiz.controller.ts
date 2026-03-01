@@ -3,12 +3,16 @@ import {
   ClassSerializerInterceptor,
   Controller,
   Delete,
+  FileTypeValidator,
   Get,
+  MaxFileSizeValidator,
   Param,
+  ParseFilePipe,
   ParseUUIDPipe,
   Post,
   Put,
   Query,
+  UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
@@ -24,6 +28,8 @@ import { CreateQuizDto } from './dto/create-quiz.dto';
 import { FindAllQuizzesDto } from './dto/find-quiz.dto';
 import { PrivateReturnQuizDto, PublicReturnQuizDto } from './dto/return-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
+import 'multer';
 
 @ApiTags('Quizzes')
 @ApiBearerAuth()
@@ -124,5 +130,31 @@ export class QuizController {
     @Param('companyId', ParseUUIDPipe) companyId: string,
   ) {
     return await this.quizService.deleteBy({ id, company: { id: companyId } });
+  }
+
+  @ApiOperation({ summary: 'Imports quiz by Excel file.' })
+  @ApiResponse({ status: 200, description: 'Success.' })
+  @ApiResponse({ status: 400, description: 'Bad request.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
+  @AllowedCompanyRoles([CompanyRole.OWNER, CompanyRole.ADMIN])
+  @Post('company/:companyId/import')
+  @UseInterceptors(FileInterceptor('file'))
+  async importQuizzes(
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 5242880 }),
+          new FileTypeValidator({
+            fileType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          }),
+        ],
+        fileIsRequired: true,
+      }),
+    )
+    file: Express.Multer.File,
+    @Param('companyId', ParseUUIDPipe) companyId: string,
+  ) {
+    const safeBuffer = file.buffer as globalThis.Buffer;
+    return this.quizService.parseExcel(safeBuffer, companyId);
   }
 }

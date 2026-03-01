@@ -5,7 +5,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { DeleteResult, FindOneOptions, Repository } from 'typeorm';
+import { DataSource, DeleteResult, FindOneOptions, Repository } from 'typeorm';
 import { Quiz } from '../common/entities/quiz.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { QuizQuestionType, AnswerCorrectness, NotificationType } from '../utils/enums';
@@ -17,6 +17,12 @@ import { CreateQuizDto } from './dto/create-quiz.dto';
 import { FindAllQuizzesDto, FindQuizDto } from './dto/find-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import * as ExcelJS from 'exceljs';
+import { QuizQuestion } from '../common/entities/question.entity';
+import { plainToInstance } from 'class-transformer';
+import { validateOrReject } from 'class-validator';
+import { Readable } from 'stream';
+import { Notification } from '../common/entities/notification.entity';
 
 const ALLOWED_QUIZ_RELATIONS = ['questions', 'questions.answers'];
 
@@ -27,6 +33,7 @@ export class QuizService {
     private readonly quizzesRepository: Repository<Quiz>,
     private readonly logger: Logger,
     private readonly eventEmitter: EventEmitter2,
+    private dataSource: DataSource,
   ) {}
 
   async create(companyId: string, data: CreateQuizDto): Promise<Quiz> {
@@ -119,6 +126,128 @@ export class QuizService {
     }
 
     return result;
+  }
+
+  async parseExcel(file: Buffer, companyId: string) {
+    const workbook = new ExcelJS.Workbook();
+    const stream = Readable.from(file);
+    await workbook.xlsx.read(stream);
+    const worksheet = workbook.getWorksheet(1);
+
+    if (!worksheet) {
+      throw new BadRequestException('Invalid file provided');
+    }
+
+    const quizzesMap = new Map<string, any>();
+    const rows = worksheet.getRows(2, worksheet.rowCount) || [];
+
+    for (const row of rows) {
+      const rawValues = row.values as any[];
+
+      const title = rawValues[1] as string;
+      const description = rawValues[2];
+      const completionFrequency = rawValues[3];
+      const prompt = rawValues[4];
+      const type = rawValues[5];
+      const correctIds = rawValues[6];
+
+      if (!title && !prompt) continue;
+
+      if (!title || !prompt) {
+        throw new BadRequestException(`Row ${row.number} is missing a required Title or Prompt.`);
+      }
+
+      const rawOptions = rawValues.slice(7);
+
+      const options = rawOptions.filter(
+        (val) => val !== undefined && val !== null && String(val).trim() !== '',
+      );
+
+      const correctIndexes = correctIds
+        ? String(correctIds)
+            .split(',')
+            .map((v) => parseInt(v.trim(), 10))
+            .filter((v) => !isNaN(v))
+        : [];
+
+      const answers = options.map((content, index) => ({
+        content: String(content),
+        correctness: correctIndexes.includes(index + 1)
+          ? AnswerCorrectness.CORRECT
+          : AnswerCorrectness.INCORRECT,
+      }));
+
+      if (!quizzesMap.has(title)) {
+        quizzesMap.set(title, {
+          title: String(title),
+          description: description ? String(description) : '',
+          completionFrequency: Number(completionFrequency) || 0,
+          questions: [],
+        });
+      }
+
+      quizzesMap.get(title).questions.push({
+        prompt: String(prompt),
+        type: type as QuizQuestionType,
+        answers,
+      });
+    }
+
+    const pendingNotifications: unknown[] = [];
+
+    await this.dataSource.transaction(async (manager) => {
+      for (const [title, rawQuizData] of quizzesMap.entries()) {
+        const quizDto = plainToInstance(CreateQuizDto, rawQuizData);
+
+        try {
+          await validateOrReject(quizDto);
+        } catch (_error) {
+          throw new BadRequestException(
+            `Validation failed for quiz "${title}". Please check your Excel formatting. Error: $`,
+          );
+        }
+
+        this.validateQuestions(quizDto.questions);
+
+        const existingQuiz = await manager.findOne(Quiz, {
+          where: { title, company: { id: companyId } },
+          relations: ['questions'],
+        });
+
+        if (existingQuiz) {
+          const newQuestions = manager.create(QuizQuestion, quizDto.questions);
+          existingQuiz.questions = [...existingQuiz.questions, ...newQuestions];
+          await manager.save(existingQuiz);
+        } else {
+          const newQuiz = manager.create(Quiz, {
+            ...quizDto,
+            company: { id: companyId },
+          });
+          const savedQuiz = await manager.save(newQuiz);
+          const populatedQuiz = await manager.findOne(Quiz, {
+            where: { id: savedQuiz.id },
+            relations: ['company', 'questions', 'questions.answers'],
+          });
+
+          if (!populatedQuiz) {
+            throw new InternalServerErrorException('Failed to retrieve the created quiz');
+          }
+
+          pendingNotifications.push({
+            companyId: populatedQuiz.company.id,
+            type: NotificationType.QUIZ_CREATED,
+            message: `A new quiz "${populatedQuiz.title}" is available!`,
+            metadata: { quizId: populatedQuiz.id },
+          });
+        }
+      }
+    });
+
+    for (const notification of pendingNotifications) {
+      this.eventEmitter.emit('notification.broadcast_to_company', notification);
+    }
+
+    return { message: 'Import completed and validated successfully' };
   }
 
   private validateQuestions(questions: (CreateQuestionDto | UpdateQuestionDto)[]): void {
