@@ -140,9 +140,9 @@ export class AttemptService {
 
     for (const question of questions) {
       const correctAnswers = question.answers.filter(
-        (a) => a.correctness === AnswerCorrectness.CORRECT,
+        (a: { correctness: AnswerCorrectness }) => a.correctness === AnswerCorrectness.CORRECT,
       );
-      const correctAnswerIds = correctAnswers.map((a) => a.id);
+      const correctAnswerIds = correctAnswers.map((a: { id: any }) => a.id);
       const userSubmittedIds = userSubmittedAnswers[question.id] || [];
 
       if (question.type === 'single_choice' && userSubmittedIds.length > 1) {
@@ -153,7 +153,11 @@ export class AttemptService {
       let incorrectlySelected = 0;
 
       for (const id of userSubmittedIds) {
-        correctAnswerIds.includes(id) ? correctlySelected++ : incorrectlySelected++;
+        if (correctAnswerIds.includes(id)) {
+          correctlySelected++;
+        } else {
+          incorrectlySelected++;
+        }
       }
 
       const totalCorrectOptions = correctAnswerIds.length;
@@ -171,8 +175,8 @@ export class AttemptService {
         questionId: question.id,
         prompt: question.prompt,
         userAnswers: question.answers
-          .filter((answer) => userSubmittedIds.includes(answer.id))
-          .map((answer) => ({
+          .filter((answer: { id: string }) => userSubmittedIds.includes(answer.id))
+          .map((answer: { id: any; content: any }) => ({
             answerId: answer.id,
             content: answer.content,
             isCorrect: correctAnswerIds.includes(answer.id),

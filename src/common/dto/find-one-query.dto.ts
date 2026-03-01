@@ -1,4 +1,4 @@
-import { IsOptional, IsArray, IsString, IsUUID } from 'class-validator';
+import { IsOptional, IsArray, IsString } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class FindOneQueryDto {

@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsOptional, IsUUID, Length, IsString, IsEnum, IsDate } from 'class-validator';
+import { IsOptional, IsUUID, Length, IsString, IsDate } from 'class-validator';
 
 export class FindAnswerDto {
   @IsOptional()

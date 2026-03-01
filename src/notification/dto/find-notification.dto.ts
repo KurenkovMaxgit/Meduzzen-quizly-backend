@@ -1,4 +1,4 @@
-import { Length, IsString, IsOptional, IsEnum, IsUUID, IsObject } from 'class-validator';
+import { Length, IsString, IsOptional, IsEnum, IsUUID } from 'class-validator';
 import { NotificationStatus, NotificationType } from '../../utils/enums';
 import { FindUserDto } from '../../user/dto/find-user.dto';
 import { Type } from 'class-transformer';

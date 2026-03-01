@@ -129,7 +129,7 @@ export class AuthService {
     if (!decoded || !decoded.header) throw new UnauthorizedException();
 
     if (decoded.payload.iss?.includes('auth0.com')) {
-      const key = await this.jwksClient.getSigningKey(decoded.header.kid);
+      const key = await this.jwksClient.getSigningKey(decoded.header.kid as string);
       const publicKey = key.getPublicKey();
 
       const verified = this.jwtService.verify(token, { publicKey });

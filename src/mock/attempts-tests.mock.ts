@@ -35,10 +35,6 @@ export const mockAttemptRepository = {
 
 export const mockAttemptService = {
   submitAttempt: jest.fn().mockResolvedValue({ id: 'attempt-uuid-123', correctAnswersCount: 2 }),
-  getUserRating: jest.fn().mockImplementation((userId, companyId) => {
-    if (companyId) return Promise.resolve(0.8);
-    return Promise.resolve(0.75);
-  }),
   findAll: jest.fn().mockResolvedValue({ items: [mockAttempt], totalCount: 1 }),
   findOneBy: jest.fn().mockResolvedValue(mockAttempt),
   exportAttemptsToCsv: jest.fn().mockResolvedValue(Buffer.from('header1,header2\nval1,val2')),

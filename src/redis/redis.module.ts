@@ -36,7 +36,7 @@ import Redis from 'ioredis';
               const cmdArgs = command.args ? JSON.stringify(command.args) : '[]';
 
               logger.debug(`QUERY: ${cmdName} -- PARAMS: ${cmdArgs}`);
-            } catch (error) {}
+            } catch (_error) { /* empty */ }
 
             return originalSendCommand(command, stream);
           };
