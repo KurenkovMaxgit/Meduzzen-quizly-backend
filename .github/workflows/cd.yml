@@ -35,4 +35,4 @@ jobs:
 
       - name: Force ECS Service Update
         run: |
-          aws ecs update-service --cluster QuizlyCluster --service QuizlyService --force-new-deployment
+          aws ecs update-service --cluster QuizlyInfrastructureStack-QuizlyCluster95C44CD7-6GE23qsSiuib --service QuizlyInfrastructureStack-QuizlyServiceF6037A54-nCHQQrFqSH8I --force-new-deployment
