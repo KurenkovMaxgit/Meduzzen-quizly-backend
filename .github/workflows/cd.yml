@@ -1,16 +1,16 @@
 name: Quizly CD
 
 on:
-  workflow_run:
-    workflows: ['Quizly CI']
-    types: [completed]
-    branches: [main]
+  # workflow_run:
+  #   workflows: ['Quizly CI']
+  #   types: [completed]
+  #   branches: [main]
   push:
     branches: ['**']
 
 jobs:
   deploy:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
