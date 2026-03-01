@@ -60,7 +60,7 @@ npm run test:docker
 
 ## E2E Testing
 
-Run script 
+Run script
 
 ```bash
 npm run test:e2e

@@ -42,7 +42,7 @@ async function bootstrap() {
   SwaggerModule.setup('api-docs', app, document);
 
   const port = configService.getOrThrow<string>('port');
-  await app.listen(port,'0.0.0.0', () => {
+  await app.listen(port, '0.0.0.0', () => {
     logger.log(
       `Running app in MODE: ${configService.getOrThrow<string>('nodeEnv')} on PORT: 0.0.0.0:${port}`,
     );
