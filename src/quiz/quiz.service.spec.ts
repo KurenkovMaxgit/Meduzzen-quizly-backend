@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { QuizService } from './quiz.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Quiz } from '../common/entities/quiz.entity';
-import { Repository, DeleteResult } from 'typeorm';
+import { Repository, DeleteResult, DataSource } from 'typeorm';
 import {
   Logger,
   BadRequestException,
@@ -13,17 +13,38 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { QuizQuestionType, AnswerCorrectness, NotificationType } from '../utils/enums';
 import { mockCompany } from '../mock/company-tests.mock';
 import { mockQuizQueryBuilder, mockQuiz, mockQuizRepository } from '../mock/quiz-tests.mock';
-import { mockLogger } from '../mock/common-tests.mock';
+import { mockDataSource, mockEntityManager, mockLogger } from '../mock/common-tests.mock';
+import * as ExcelJS from 'exceljs';
+import { QuizQuestion } from '../common/entities/question.entity';
+
+jest.mock('exceljs', () => {
+  return {
+    Workbook: jest.fn(),
+  };
+});
 
 describe('QuizService', () => {
   let service: QuizService;
   let repository: Repository<Quiz>;
+  let mockWorkbook: any;
+  let mockWorksheet: any;
 
   const mockEventEmitter = {
     emit: jest.fn(),
   };
 
   beforeEach(async () => {
+    mockWorksheet = {
+      rowCount: 2,
+      getRows: jest.fn().mockReturnValue([]),
+    };
+
+    mockWorkbook = {
+      xlsx: { read: jest.fn().mockResolvedValue(true) },
+      getWorksheet: jest.fn().mockReturnValue(mockWorksheet),
+    };
+
+    (ExcelJS.Workbook as jest.Mock).mockImplementation(() => mockWorkbook);
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         QuizService,
@@ -38,6 +59,10 @@ describe('QuizService', () => {
         {
           provide: EventEmitter2,
           useValue: mockEventEmitter,
+        },
+        {
+          provide: DataSource,
+          useValue: mockDataSource,
         },
       ],
     }).compile();
@@ -217,6 +242,152 @@ describe('QuizService', () => {
       mockQuizRepository.delete.mockResolvedValue({ affected: 0 } as DeleteResult);
 
       await expect(service.deleteBy({ id: '999' })).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('parseExcel', () => {
+    // Row 1: Question 1
+    const validRow1 = {
+      number: 2,
+      values: [
+        null,
+        'Math Quiz', // Title
+        'Basic Math', // Description
+        7, // Frequency
+        '1+1=?', // Prompt
+        QuizQuestionType.SINGLE_CHOICE,
+        '1',
+        '2',
+        '3',
+        '4',
+      ],
+    };
+
+    const validRow2 = {
+      number: 3,
+      values: [
+        null,
+        'Math Quiz',
+        'Basic Math',
+        7,
+        '2+2=?',
+        QuizQuestionType.SINGLE_CHOICE,
+        '2',
+        '3',
+        '4',
+        '5',
+      ],
+    };
+
+    it('should throw BadRequestException if worksheet is invalid', async () => {
+      mockWorkbook.getWorksheet.mockReturnValue(null);
+      await expect(service.parseExcel(Buffer.from(''), mockCompany.id)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException if a required column is missing', async () => {
+      mockWorksheet.getRows.mockReturnValue([
+        {
+          number: 2,
+          values: [
+            null,
+            '',
+            '',
+            '',
+            'Missing title prompt',
+            QuizQuestionType.SINGLE_CHOICE,
+            '1',
+            'Option 1',
+            'Option 2',
+          ],
+        },
+      ]);
+
+      await expect(service.parseExcel(Buffer.from(''), mockCompany.id)).rejects.toThrow(
+        'Row 2 is missing a required Title or Prompt.',
+      );
+    });
+
+    it('should throw BadRequestException if quiz has less than 2 questions', async () => {
+      mockWorksheet.getRows.mockReturnValue([validRow1]);
+
+      await expect(service.parseExcel(Buffer.from(''), mockCompany.id)).rejects.toThrow(
+        /Validation failed for quiz "Math Quiz"/,
+      );
+    });
+
+    it('should throw BadRequestException if a question has less than 2 answer options', async () => {
+      const invalidRow2 = {
+        number: 3,
+        values: [
+          null,
+          'Math Quiz',
+          'Basic Math',
+          7,
+          '2+2=?',
+          QuizQuestionType.SINGLE_CHOICE,
+          '1',
+          '4',
+        ],
+      };
+
+      mockWorksheet.getRows.mockReturnValue([validRow1, invalidRow2]);
+
+      await expect(service.parseExcel(Buffer.from(''), mockCompany.id)).rejects.toThrow(
+        /Validation failed for quiz "Math Quiz"/,
+      );
+    });
+
+    it('should create a NEW quiz and emit notification if it does not exist', async () => {
+      mockWorksheet.getRows.mockReturnValue([validRow1, validRow2]);
+
+      mockEntityManager.findOne.mockResolvedValueOnce(null);
+      mockEntityManager.create.mockReturnValueOnce({ id: 'new-quiz-id' } as any);
+      mockEntityManager.save.mockResolvedValueOnce({ id: 'new-quiz-id' });
+      mockEntityManager.findOne.mockResolvedValueOnce({ ...mockQuiz, id: 'new-quiz-id' });
+
+      const result = await service.parseExcel(Buffer.from(''), mockCompany.id);
+
+      expect(mockEntityManager.create).toHaveBeenCalledWith(
+        Quiz,
+        expect.objectContaining({
+          title: 'Math Quiz',
+          company: { id: mockCompany.id },
+        }),
+      );
+      expect(mockEntityManager.save).toHaveBeenCalled();
+
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(
+        'notification.broadcast_to_company',
+        expect.objectContaining({
+          type: NotificationType.QUIZ_CREATED,
+          metadata: { quizId: 'new-quiz-id' },
+        }),
+      );
+
+      expect(result).toEqual({ message: 'Import completed and validated successfully' });
+    });
+
+    it('should APPEND questions to an EXISTING quiz and NOT emit a creation notification', async () => {
+      mockWorksheet.getRows.mockReturnValue([validRow1, validRow2]);
+
+      const existingQuiz = { id: 'existing-id', title: 'Math Quiz', questions: [] };
+      mockEntityManager.findOne.mockResolvedValueOnce(existingQuiz);
+
+      const newQuestion = { id: 'new-q', prompt: '1+1=?' };
+      mockEntityManager.create.mockReturnValueOnce([newQuestion]);
+
+      const result = await service.parseExcel(Buffer.from(''), mockCompany.id);
+
+      expect(mockEntityManager.create).toHaveBeenCalledWith(QuizQuestion, expect.any(Array));
+      expect(mockEntityManager.save).toHaveBeenCalledWith({
+        ...existingQuiz,
+        questions: [newQuestion],
+      });
+
+      expect(mockEventEmitter.emit).not.toHaveBeenCalled();
+      expect(result).toEqual({ message: 'Import completed and validated successfully' });
     });
   });
 });

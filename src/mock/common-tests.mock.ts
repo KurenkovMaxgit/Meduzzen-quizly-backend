@@ -23,6 +23,8 @@ export const mockEntityManager = {
     if (entity === CompanyUser) return mockCompanyUserRepository;
     return null;
   }),
+  findOne: jest.fn(),
+  create: jest.fn(),
 } as unknown as jest.Mocked<EntityManager>;
 
 export const mockRedis = {
