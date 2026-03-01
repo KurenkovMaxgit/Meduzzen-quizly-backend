@@ -25,6 +25,6 @@
   "watchOptions": {
     "watchFile": "dynamicprioritypolling",
     "watchDirectory": "dynamicprioritypolling",
-    "excludeDirectories": ["**/node_modules", "dist"]
+    "excludeDirectories": ["**/node_modules", "dist", "infrastructure"]
   }
 }
