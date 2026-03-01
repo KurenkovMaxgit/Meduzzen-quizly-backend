@@ -1,16 +1,14 @@
 name: Quizly CD
 
 on:
-  # workflow_run:
-  #   workflows: ['Quizly CI']
-  #   types: [completed]
-  #   branches: [main]
-  push:
-    branches: ['**']
+  workflow_run:
+    workflows: ['Quizly CI']
+    types: [completed]
+    branches: [main]
 
 jobs:
   deploy:
-    # if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,4 +33,4 @@ jobs:
 
       - name: Force ECS Service Update
         run: |
-          aws ecs update-service --cluster QuizlyInfrastructureStack-QuizlyCluster95C44CD7-6GE23qsSiuib --service QuizlyInfrastructureStack-QuizlyServiceF6037A54-nCHQQrFqSH8I --force-new-deployment
+          aws ecs update-service --cluster QuizlyInfrastructureStack-QuizlyCluster95C44CD7-6GE23qsSiuib --service QuizlyInfrastructureStack-QuizlyServiceF6037A54-nCHQQrFqSH8I --desired-count 1 --force-new-deployment
