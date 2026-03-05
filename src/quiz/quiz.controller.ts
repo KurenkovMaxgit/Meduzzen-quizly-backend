@@ -24,6 +24,7 @@ import { FindAllQuizzesDto } from './dto/quiz/find-quiz.dto';
 import { UpdateQuizDto } from './dto/quiz/update-quiz.dto';
 import { plainToInstance } from 'class-transformer';
 import { FindOneQueryDto } from '../common/dto/find-one-query.dto';
+import { CompanyRole } from '../utils/enums';
 
 @ApiTags('Quizzes')
 @ApiBearerAuth()
@@ -37,7 +38,7 @@ export class QuizController {
   @ApiResponse({ status: 201, description: 'Created.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  @AllowedCompanyRoles(['owner', 'admin'])
+  @AllowedCompanyRoles([CompanyRole.OWNER, CompanyRole.ADMIN])
   @Post('company/:companyId')
   async create(@Param('companyId', ParseUUIDPipe) companyId: string, @Body() data: CreateQuizDto) {
     const quiz = await this.quizService.create(companyId, data);
@@ -48,7 +49,7 @@ export class QuizController {
   @ApiResponse({ status: 200, description: 'Success.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  @AllowedCompanyRoles(['owner', 'admin'])
+  @AllowedCompanyRoles([CompanyRole.OWNER, CompanyRole.ADMIN])
   @Get('company/:companyId/list')
   async findAll(
     @Param('companyId', ParseUUIDPipe) companyId: string,
@@ -66,7 +67,7 @@ export class QuizController {
   @ApiResponse({ status: 200, description: 'Success.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  @AllowedCompanyRoles(['owner', 'admin'])
+  @AllowedCompanyRoles([CompanyRole.OWNER, CompanyRole.ADMIN])
   @Get(':id/company/:companyId/private')
   async findOnePrivateById(
     @Param('id', ParseUUIDPipe) id: string,
@@ -84,7 +85,7 @@ export class QuizController {
   @ApiResponse({ status: 200, description: 'Success.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  @AllowedCompanyRoles(['owner', 'admin', 'member'])
+  @AllowedCompanyRoles([CompanyRole.OWNER, CompanyRole.ADMIN, CompanyRole.MEMBER])
   @Get(':id/company/:companyId/public')
   async findOnePublicById(
     @Param('id', ParseUUIDPipe) id: string,
@@ -102,7 +103,7 @@ export class QuizController {
   @ApiResponse({ status: 200, description: 'Success.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  @AllowedCompanyRoles(['owner', 'admin'])
+  @AllowedCompanyRoles([CompanyRole.OWNER, CompanyRole.ADMIN])
   @Put(':id/company/:companyId')
   async updateOneById(
     @Param('id', ParseUUIDPipe) id: string,
@@ -117,7 +118,7 @@ export class QuizController {
   @ApiResponse({ status: 200, description: 'Success.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  @AllowedCompanyRoles(['owner', 'admin'])
+  @AllowedCompanyRoles([CompanyRole.OWNER, CompanyRole.ADMIN])
   @Delete(':id/company/:companyId')
   async deleteOneById(
     @Param('id', ParseUUIDPipe) id: string,

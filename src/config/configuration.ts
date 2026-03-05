@@ -12,6 +12,11 @@ const configuration = () => ({
     issuerUrl: process.env.AUTH0_ISSUER_URL,
     audience: process.env.AUTH0_AUDIENCE,
   },
+  redis: {
+    host: process.env.REDIS_HOST,
+    port: process.env.REDIS_PORT,
+    password: process.env.REDIS_PASSWORD,
+  },
 });
 
 export type AppConfiguration = ReturnType<typeof configuration>;

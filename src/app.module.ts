@@ -11,6 +11,7 @@ import { AuthModule } from './auth/auth.module';
 import { CompanyModule } from './company/company.module';
 import { ActionModule } from './action/action.module';
 import { QuizModule } from './quiz/quiz.module';
+import { RedisModule } from './redis/redis.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { QuizModule } from './quiz/quiz.module';
     CompanyModule,
     ActionModule,
     QuizModule,
+    RedisModule,
   ],
   controllers: [AppController],
   providers: [AppService],

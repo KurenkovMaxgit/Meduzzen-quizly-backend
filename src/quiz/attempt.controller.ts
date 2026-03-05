@@ -16,6 +16,8 @@ import { CompanyRolesGuard } from '../company/guards/company-role.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { CreateAttemptDto } from './dto/attempt/create-attempt.dto';
 import { AllowedCompanyRoles } from '../common/decorators/company-roles.decorator';
+import { CompanyRole } from '../utils/enums';
+import { User } from '../common/entities/user.entity';
 
 @ApiTags('Quiz Attempts')
 @ApiBearerAuth()
@@ -29,20 +31,20 @@ export class AttemptController {
   @ApiResponse({ status: 201, description: 'Created.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  @AllowedCompanyRoles(['owner', 'admin', 'member'])
+  @AllowedCompanyRoles([CompanyRole.OWNER, CompanyRole.ADMIN, CompanyRole.MEMBER])
   @Post('company/:companyId/quiz/:quizId')
   async submitAttempt(
-    @CurrentUser('id') userId: string,
+    @CurrentUser() user: User,
     @Param('companyId', ParseUUIDPipe) companyId: string,
     @Param('quizId', ParseUUIDPipe) quizId: string,
     @Body() data: CreateAttemptDto,
   ) {
-    return await this.attemptService.submitAttempt(userId, companyId, quizId, data);
+    return this.attemptService.submitAttempt(user, companyId, quizId, data);
   }
 
   @ApiOperation({ summary: 'Get user average rating for a specific company.' })
   @ApiResponse({ status: 200, description: 'Success.' })
-  @AllowedCompanyRoles(['owner', 'admin', 'member'])
+  @AllowedCompanyRoles([CompanyRole.OWNER, CompanyRole.ADMIN, CompanyRole.MEMBER])
   @Get('rating/company/:companyId')
   async getCompanyRating(
     @CurrentUser('id') userId: string,

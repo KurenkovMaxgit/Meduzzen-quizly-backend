@@ -3,15 +3,7 @@ import { User } from './user.entity';
 import { Quiz } from './quiz.entity';
 import { Company } from './company.entity';
 import { BaseEntity } from './base.entity';
-
-export interface QuestionAttemptSnapshot {
-  questionId: string;
-  prompt: string;
-  submittedAnswers: {
-    answerId: string;
-    content: string;
-  }[];
-}
+import { QuestionAttemptSnapshot } from '../interfaces/question-attempt-snapshot.interface';
 
 @Entity()
 export class QuizAttempt extends BaseEntity {

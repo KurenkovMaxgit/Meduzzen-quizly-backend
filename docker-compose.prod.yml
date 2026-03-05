@@ -5,20 +5,31 @@ services:
       context: .
       dockerfile: Dockerfile.prod
     ports:
-      - '${PORT}:8080'
+      - '${PORT}:${PORT}'
     env_file:
       - ./.env.production.local
-    volumes:
-      - ./src:/app/src
   postgres-prod:
     image: postgres:18
     container_name: postgres_prod_container
     env_file:
       - ./.env.production.local
     ports:
-      - '${POSTGRES_PORT}:5432'
+      - '${POSTGRES_EXTERNAL_PORT}:${POSTGRES_PORT}'
     volumes:
       - ./pgdata/prod:/var/lib/postgresql/data/pgdata
+  redis-prod:
+    image: redis:alpine
+    container_name: redis_prod_container
+    env_file:
+      - ./.env.production.local
+    ports:
+      - '${REDIS_EXTERNAL_PORT}:${REDIS_PORT}'
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD}
 volumes:
   pgdata:
+    driver: local
+  redis_data:
     driver: local

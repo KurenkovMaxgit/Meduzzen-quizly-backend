@@ -66,12 +66,6 @@ Run script
 npm run test:e2e
 ```
 
-**_NOTE:_** For Mac/Linux(Bash) users change script on this:
-
-```
-npm run db:test:up && npm run test:e2e:run ; npm run db:test:down
-```
-
 ## Migrations
 
 In development mode, schemas synchronize automatically upon running the application. However, for production environments, migrations are strictly required
