@@ -26,7 +26,7 @@ export const mockQuiz = {
   ],
 };
 
-export const mockQueryBuilder = {
+export const mockQuizQueryBuilder = {
   alias: 'quiz',
   andWhere: jest.fn().mockReturnThis(),
   take: jest.fn().mockReturnThis(),
@@ -40,7 +40,7 @@ export const mockQuizRepository = {
   save: jest.fn(),
   findOne: jest.fn(),
   delete: jest.fn(),
-  createQueryBuilder: jest.fn(() => mockQueryBuilder),
+  createQueryBuilder: jest.fn(() => mockQuizQueryBuilder),
 };
 
 export const mockQuizService = {

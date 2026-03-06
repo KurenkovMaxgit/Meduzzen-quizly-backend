@@ -4,53 +4,28 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Notification } from '../common/entities/notification.entity';
 import { CompanyService } from '../company/company.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { Logger } from '@nestjs/common';
 import { NotificationStatus, NotificationType } from '../utils/enums';
-import { mockCompany } from '../mock/company-tests.mock';
+import { mockCompany, mockCompanyService } from '../mock/company-tests.mock';
 import { mockUser } from '../mock/user-tests.mock';
-import { mockNotification } from '../mock/notification-tests.mock';
+import {
+  mockNotificationManagerQueryBuilder,
+  mockNotificationRepository,
+  mockNotificationQueryBuilder,
+} from '../mock/notification-tests.mock';
+import { mockEventEmitter, mockLogger } from '../mock/common-tests.mock';
 
 describe('NotificationService', () => {
   let service: NotificationService;
   let companyService: CompanyService;
-  let eventEmitter: EventEmitter2;
-
-  let localMockQueryBuilder: any;
-  let localMockNotificationRepo: any;
-
-  const mockCompanyService = {
-    findOneBy: jest.fn(),
-  };
-
-  const mockEventEmitter = {
-    emit: jest.fn(),
-  };
 
   beforeEach(async () => {
-    localMockQueryBuilder = {
-      alias: 'notification',
-      andWhere: jest.fn().mockReturnThis(),
-      take: jest.fn().mockReturnThis(),
-      skip: jest.fn().mockReturnThis(),
-      getManyAndCount: jest.fn().mockResolvedValue([[{ id: mockNotification.id }], 1]),
-
-      insert: jest.fn().mockReturnThis(),
-      into: jest.fn().mockReturnThis(),
-      values: jest.fn().mockReturnThis(),
-      execute: jest.fn().mockResolvedValue(undefined),
-    };
-
-    localMockNotificationRepo = {
-      createQueryBuilder: jest.fn(() => localMockQueryBuilder),
-      update: jest.fn(),
-      count: jest.fn(),
-    };
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         NotificationService,
         {
           provide: getRepositoryToken(Notification),
-          useValue: localMockNotificationRepo,
+          useValue: mockNotificationRepository,
         },
         {
           provide: CompanyService,
@@ -60,12 +35,15 @@ describe('NotificationService', () => {
           provide: EventEmitter2,
           useValue: mockEventEmitter,
         },
+        {
+          provide: Logger,
+          useValue: mockLogger,
+        },
       ],
     }).compile();
 
     service = module.get<NotificationService>(NotificationService);
     companyService = module.get<CompanyService>(CompanyService);
-    eventEmitter = module.get<EventEmitter2>(EventEmitter2);
 
     jest.clearAllMocks();
   });
@@ -87,19 +65,22 @@ describe('NotificationService', () => {
 
       await service.handleUniversalCompanyNotification(payload);
 
-      expect(localMockQueryBuilder.insert).not.toHaveBeenCalled();
+      expect(mockNotificationRepository.save).not.toHaveBeenCalled();
       expect(mockEventEmitter.emit).not.toHaveBeenCalled();
 
       mockCompanyService.findOneBy.mockResolvedValueOnce({ members: [] });
 
       await service.handleUniversalCompanyNotification(payload);
 
-      expect(localMockQueryBuilder.insert).not.toHaveBeenCalled();
+      expect(mockNotificationRepository.save).not.toHaveBeenCalled();
     });
 
-    it('should bulk insert notifications and emit websocket event for company members', async () => {
+    it('should bulk save notifications and emit websocket event for company members', async () => {
       const mockMembers = [{ user: { id: 'user-1' } }, { user: { id: 'user-2' } }];
       mockCompanyService.findOneBy.mockResolvedValueOnce({ members: mockMembers });
+
+      const savedMocks = [{ id: 'notification-1' }, { id: 'notification-2' }];
+      mockNotificationRepository.save.mockResolvedValueOnce(savedMocks);
 
       await service.handleUniversalCompanyNotification(payload);
 
@@ -108,9 +89,7 @@ describe('NotificationService', () => {
         { relations: ['members', 'members.user'] },
       );
 
-      expect(localMockQueryBuilder.insert).toHaveBeenCalled();
-      expect(localMockQueryBuilder.into).toHaveBeenCalledWith(Notification);
-      expect(localMockQueryBuilder.values).toHaveBeenCalledWith([
+      expect(mockNotificationRepository.save).toHaveBeenCalledWith([
         {
           user: { id: 'user-1' },
           company: { id: mockCompany.id },
@@ -128,10 +107,9 @@ describe('NotificationService', () => {
           status: NotificationStatus.UNREAD,
         },
       ]);
-      expect(localMockQueryBuilder.execute).toHaveBeenCalled();
 
       expect(mockEventEmitter.emit).toHaveBeenCalledWith('ws.send_notification', {
-        userIds: ['user-1', 'user-2'],
+        notifications: savedMocks,
       });
     });
   });
@@ -142,10 +120,13 @@ describe('NotificationService', () => {
 
       const result = await service.findAll(mockUser.id, query as any);
 
-      expect(localMockNotificationRepo.createQueryBuilder).toHaveBeenCalledWith('notification');
-      expect(localMockQueryBuilder.andWhere).toHaveBeenCalledWith('notification.userId = :userId', {
-        userId: mockUser.id,
-      });
+      expect(mockNotificationRepository.createQueryBuilder).toHaveBeenCalledWith('notification');
+      expect(mockNotificationQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'notification.userId = :userId',
+        {
+          userId: mockUser.id,
+        },
+      );
       expect(result.items.length).toBe(1);
       expect(result.totalCount).toBe(1);
     });
@@ -156,16 +137,16 @@ describe('NotificationService', () => {
       const result = await service.updateStatus([], mockUser.id, NotificationStatus.READ);
 
       expect(result).toEqual({ affected: 0, raw: [], generatedMaps: [] });
-      expect(localMockNotificationRepo.update).not.toHaveBeenCalled();
+      expect(mockNotificationRepository.update).not.toHaveBeenCalled();
     });
 
     it('should call update and return UpdateResult for valid array', async () => {
-      localMockNotificationRepo.update.mockResolvedValueOnce({ affected: 2 });
+      mockNotificationRepository.update.mockResolvedValueOnce({ affected: 2 });
 
       const ids = ['2836e21b-7a90-4a2a-8eda-4f34c3531cf5', 'c2a5d714-59e8-46f8-a37f-2e6f5fd716da'];
       const result = await service.updateStatus(ids, mockUser.id, NotificationStatus.READ);
 
-      expect(localMockNotificationRepo.update).toHaveBeenCalledWith(
+      expect(mockNotificationRepository.update).toHaveBeenCalledWith(
         expect.objectContaining({ userId: mockUser.id }),
         { status: NotificationStatus.READ },
       );
@@ -175,14 +156,61 @@ describe('NotificationService', () => {
 
   describe('getCountByStatus', () => {
     it('should return the count of notifications with specific status', async () => {
-      localMockNotificationRepo.count.mockResolvedValueOnce(5);
+      mockNotificationRepository.count.mockResolvedValueOnce(5);
 
       const result = await service.getCountByStatus(mockUser.id, NotificationStatus.UNREAD);
 
-      expect(localMockNotificationRepo.count).toHaveBeenCalledWith({
+      expect(mockNotificationRepository.count).toHaveBeenCalledWith({
         where: { userId: mockUser.id, status: NotificationStatus.UNREAD },
       });
       expect(result).toBe(5);
+    });
+  });
+
+  describe('checkAndNotifyLapsedUsers', () => {
+    it('should log and return early if no overdue users are found', async () => {
+      mockNotificationManagerQueryBuilder.getRawMany.mockResolvedValueOnce([]);
+
+      await service.checkAndNotifyLapsedUsers();
+
+      expect(mockLogger.log).toHaveBeenCalledWith('No new overdue users to notify.');
+      expect(mockNotificationRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('should map overdue users, save notifications, and emit websocket event', async () => {
+      const overdueUsersMock = [
+        { user_id: 'user-1', quiz_id: 'quiz-1', quiz_title: 'Math Quiz' },
+        { user_id: 'user-2', quiz_id: 'quiz-1', quiz_title: 'Math Quiz' },
+      ];
+      mockNotificationManagerQueryBuilder.getRawMany.mockResolvedValueOnce(overdueUsersMock);
+
+      const savedNotificationsMock = [{ id: 'notification-1' }, { id: 'notification-2' }];
+      mockNotificationRepository.save.mockResolvedValueOnce(savedNotificationsMock);
+
+      await service.checkAndNotifyLapsedUsers();
+
+      expect(mockNotificationRepository.save).toHaveBeenCalledWith([
+        {
+          user: { id: 'user-1' },
+          text: `Reminder: It's time to take the quiz "Math Quiz"!`,
+          type: NotificationType.QUIZ_REMINDER,
+          metadata: { quizId: 'quiz-1', quizTitle: 'Math Quiz' },
+          status: NotificationStatus.UNREAD,
+        },
+        {
+          user: { id: 'user-2' },
+          text: `Reminder: It's time to take the quiz "Math Quiz"!`,
+          type: NotificationType.QUIZ_REMINDER,
+          metadata: { quizId: 'quiz-1', quizTitle: 'Math Quiz' },
+          status: NotificationStatus.UNREAD,
+        },
+      ]);
+
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith('ws.send_notification', {
+        notifications: savedNotificationsMock,
+      });
+
+      expect(mockLogger.log).toHaveBeenCalledWith('Sent reminders to 2 users.');
     });
   });
 });

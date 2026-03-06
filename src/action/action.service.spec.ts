@@ -6,15 +6,10 @@ import { CompanyService } from '../company/company.service';
 import { DataSource, Repository } from 'typeorm';
 import { Logger, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { ActionDecision, ActionStatus, ActionType } from '../utils/enums';
-import {
-  mockActionRepository,
-  mockQueryBuilder,
-  mockCompanyService,
-  mockLogger,
-  mockAction,
-} from '../mock/actions-tests.mock';
-import { mockDataSource, mockEntityManager, mockCompany } from '../mock/company-tests.mock';
+import { mockActionRepository, mockQueryBuilder, mockInvite } from '../mock/actions-tests.mock';
 import { mockUser } from '../mock/user-tests.mock';
+import { mockCompany, mockCompanyService } from '../mock/company-tests.mock';
+import { mockDataSource, mockEntityManager, mockLogger } from '../mock/common-tests.mock';
 
 describe('ActionService', () => {
   let service: ActionService;
@@ -63,7 +58,7 @@ describe('ActionService', () => {
       };
 
       mockActionRepository.findOne.mockResolvedValue(null);
-      mockActionRepository.save.mockResolvedValue(mockAction);
+      mockActionRepository.save.mockResolvedValue(mockInvite);
 
       const result = await service.create('creator-id', 'company-123', dto);
 
@@ -76,7 +71,7 @@ describe('ActionService', () => {
           type: dto.type,
         }),
       );
-      expect(result).toEqual(mockAction);
+      expect(result).toEqual(mockInvite);
     });
 
     it('should throw BadRequestException if pending action exists', async () => {
@@ -85,7 +80,7 @@ describe('ActionService', () => {
         type: ActionType.INVITE,
       };
 
-      mockActionRepository.findOne.mockResolvedValue(mockAction);
+      mockActionRepository.findOne.mockResolvedValue(mockInvite);
 
       await expect(service.create('creator-id', 'company-123', dto)).rejects.toThrow(
         BadRequestException,
@@ -110,7 +105,7 @@ describe('ActionService', () => {
       );
       expect(mockQueryBuilder.take).toHaveBeenCalledWith(10);
       expect(mockQueryBuilder.skip).toHaveBeenCalledWith(0);
-      expect(result).toEqual({ items: [mockAction], totalCount: 1 });
+      expect(result).toEqual({ items: [mockInvite], totalCount: 1 });
     });
 
     it('should handle empty query parameters', async () => {
@@ -121,14 +116,14 @@ describe('ActionService', () => {
 
   describe('findOneBy', () => {
     it('should return an action if found', async () => {
-      mockActionRepository.findOne.mockResolvedValue(mockAction);
+      mockActionRepository.findOne.mockResolvedValue(mockInvite);
 
       const result = await service.findOneBy({ id: 'action-123' });
-      expect(result).toEqual(mockAction);
+      expect(result).toEqual(mockInvite);
     });
 
     it('should filter invalid relations and warn logger', async () => {
-      mockActionRepository.findOne.mockResolvedValue(mockAction);
+      mockActionRepository.findOne.mockResolvedValue(mockInvite);
 
       await service.findOneBy(
         { id: 'action-123' },
@@ -148,7 +143,7 @@ describe('ActionService', () => {
 
   describe('manageInvite', () => {
     it('should accept invite and add member to company', async () => {
-      const inviteAction = { ...mockAction, type: ActionType.INVITE };
+      const inviteAction = { ...mockInvite, type: ActionType.INVITE };
       mockActionRepository.findOne.mockResolvedValue(inviteAction);
       mockEntityManager.save.mockResolvedValue({ ...inviteAction, status: ActionStatus.ACCEPTED });
 
@@ -166,7 +161,7 @@ describe('ActionService', () => {
     });
 
     it('should decline invite', async () => {
-      const inviteAction = { ...mockAction, type: ActionType.INVITE };
+      const inviteAction = { ...mockInvite, type: ActionType.INVITE };
       mockActionRepository.findOne.mockResolvedValue(inviteAction);
 
       await service.manageInvite('action-123', mockUser.id, ActionDecision.DECLINE);
@@ -178,7 +173,7 @@ describe('ActionService', () => {
     });
 
     it('should throw ForbiddenException if user is not the subject', async () => {
-      mockActionRepository.findOne.mockResolvedValue(mockAction);
+      mockActionRepository.findOne.mockResolvedValue(mockInvite);
 
       await expect(
         service.manageInvite('action-123', 'wrong-user-id', ActionDecision.ACCEPT),
@@ -186,7 +181,7 @@ describe('ActionService', () => {
     });
 
     it('should throw BadRequestException if action is not an invite', async () => {
-      mockActionRepository.findOne.mockResolvedValue({ ...mockAction, type: ActionType.REQUEST });
+      mockActionRepository.findOne.mockResolvedValue({ ...mockInvite, type: ActionType.REQUEST });
 
       await expect(
         service.manageInvite('action-123', mockUser.id, ActionDecision.ACCEPT),
@@ -196,7 +191,7 @@ describe('ActionService', () => {
 
   describe('manageRequest', () => {
     it('should allow admin/owner to accept request', async () => {
-      const requestAction = { ...mockAction, type: ActionType.REQUEST };
+      const requestAction = { ...mockInvite, type: ActionType.REQUEST };
       mockActionRepository.findOne.mockResolvedValue(requestAction);
       mockCompanyService.getCompanyUserRole.mockResolvedValue('admin');
 
@@ -209,7 +204,7 @@ describe('ActionService', () => {
     });
 
     it('should throw ForbiddenException if user is not admin/owner', async () => {
-      const requestAction = { ...mockAction, type: ActionType.REQUEST };
+      const requestAction = { ...mockInvite, type: ActionType.REQUEST };
       mockActionRepository.findOne.mockResolvedValue(requestAction);
       mockCompanyService.getCompanyUserRole.mockResolvedValue('member');
 
@@ -220,7 +215,7 @@ describe('ActionService', () => {
 
     it('should throw BadRequestException if action is already handled', async () => {
       const doneAction = {
-        ...mockAction,
+        ...mockInvite,
         type: ActionType.REQUEST,
         status: ActionStatus.ACCEPTED,
       };
@@ -235,15 +230,15 @@ describe('ActionService', () => {
 
   describe('cancelAction', () => {
     it('should allow creator to cancel action', async () => {
-      mockActionRepository.findOne.mockResolvedValue(mockAction);
+      mockActionRepository.findOne.mockResolvedValue(mockInvite);
 
       await service.cancelAction('action-123', mockUser.id);
 
-      expect(repository.softRemove).toHaveBeenCalledWith(mockAction);
+      expect(repository.softRemove).toHaveBeenCalledWith(mockInvite);
     });
 
     it('should allow company admin to cancel invite', async () => {
-      const inviteAction = { ...mockAction, type: ActionType.INVITE, createdBy: { id: 'other' } };
+      const inviteAction = { ...mockInvite, type: ActionType.INVITE, createdBy: { id: 'other' } };
       mockActionRepository.findOne.mockResolvedValue(inviteAction);
       mockCompanyService.getCompanyUserRole.mockResolvedValue('admin');
 
@@ -253,7 +248,7 @@ describe('ActionService', () => {
     });
 
     it('should throw ForbiddenException if random user tries to cancel', async () => {
-      const inviteAction = { ...mockAction, createdBy: { id: 'other' } };
+      const inviteAction = { ...mockInvite, createdBy: { id: 'other' } };
       mockActionRepository.findOne.mockResolvedValue(inviteAction);
       mockCompanyService.getCompanyUserRole.mockResolvedValue('member');
 
@@ -263,7 +258,7 @@ describe('ActionService', () => {
     });
 
     it('should throw BadRequestException if action is not pending', async () => {
-      const acceptedAction = { ...mockAction, status: ActionStatus.ACCEPTED };
+      const acceptedAction = { ...mockInvite, status: ActionStatus.ACCEPTED };
       mockActionRepository.findOne.mockResolvedValue(acceptedAction);
 
       await expect(service.cancelAction('action-123', mockUser.id)).rejects.toThrow(

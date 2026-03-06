@@ -41,7 +41,7 @@ describe('NotificationController', () => {
       const result = await controller.findAll(mockUser.id, query as any);
 
       expect(service.findAll).toHaveBeenCalledWith(mockUser.id, query);
-      expect(result).toEqual({ items: [{ id: mockNotification }], totalCount: 1 });
+      expect(result).toEqual({ items: [mockNotification], totalCount: 1 });
     });
   });
 

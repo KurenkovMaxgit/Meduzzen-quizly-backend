@@ -13,11 +13,9 @@ import {
   mockCompanyRepository,
   mockCompanyUser,
   mockCompanyUserRepository,
-  mockDataSource,
-  mockEntityManager,
-  mockQueryBuilder,
+  mockCompanyQueryBuilder,
 } from '../mock/company-tests.mock';
-import { mockLogger } from '../mock/actions-tests.mock';
+import { mockDataSource, mockEntityManager, mockLogger } from '../mock/common-tests.mock';
 
 describe('CompanyService', () => {
   let service: CompanyService;
@@ -101,13 +99,13 @@ describe('CompanyService', () => {
 
       expect(companyRepo.createQueryBuilder).toHaveBeenCalledWith('company');
 
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
+      expect(mockCompanyQueryBuilder.andWhere).toHaveBeenCalledWith(
         expect.stringContaining('company.status = :company_status'),
         expect.anything(),
       );
 
-      expect(mockQueryBuilder.take).toHaveBeenCalledWith(10);
-      expect(mockQueryBuilder.skip).toHaveBeenCalledWith(0);
+      expect(mockCompanyQueryBuilder.take).toHaveBeenCalledWith(10);
+      expect(mockCompanyQueryBuilder.skip).toHaveBeenCalledWith(0);
       expect(result).toEqual({ items: [mockCompany], totalCount: 1 });
     });
   });

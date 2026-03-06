@@ -8,22 +8,12 @@ import { CompanyRolesGuard } from '../src/company/guards/company-role.guard';
 import { QuizQuestionType, AnswerCorrectness } from '../src/utils/enums';
 import { mockQuiz, mockQuizService } from '../src/mock/quiz-tests.mock';
 import { mockCompany } from '../src/mock/company-tests.mock';
+import { mockCompanyRolesGuard, mockJwtAuthGuard } from '../src/mock/auth-tests.mock';
 
 describe('QuizController (e2e)', () => {
   let app: INestApplication;
   let quizService: QuizService;
-
-  const mockJwtAuthGuard = {
-    canActivate: (context: ExecutionContext) => {
-      const req = context.switchToHttp().getRequest();
-      req.user = { id: 'user-uuid-123' };
-      return true;
-    },
-  };
-
-  const mockCompanyRolesGuard = {
-    canActivate: () => true,
-  };
+  const baseUrl = `/quiz`;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -92,7 +82,7 @@ describe('QuizController (e2e)', () => {
       };
 
       return request(app.getHttpServer())
-        .post(`/quiz/company/${mockCompany.id}`)
+        .post(`${baseUrl}/company/${mockCompany.id}`)
         .send(createDto)
         .expect(201)
         .expect((res) => {
@@ -106,7 +96,7 @@ describe('QuizController (e2e)', () => {
 
     it('should fail with 400 if companyId is invalid UUID', () => {
       return request(app.getHttpServer())
-        .post(`/quiz/company/invalid-uuid`)
+        .post(`${baseUrl}/company/invalid-uuid`)
         .send({ title: 'New Quiz' })
         .expect(400);
     });
@@ -115,7 +105,7 @@ describe('QuizController (e2e)', () => {
   describe('GET /quiz/company/:companyId/list', () => {
     it('should return paginated quizzes mapped to PrivateReturnQuizDto', () => {
       return request(app.getHttpServer())
-        .get(`/quiz/company/${mockCompany.id}/list`)
+        .get(`${baseUrl}/company/${mockCompany.id}/list`)
         .query({ take: 10, skip: 0 })
         .expect(200)
         .expect((res) => {
@@ -130,7 +120,7 @@ describe('QuizController (e2e)', () => {
   describe('GET /quiz/:id/company/:companyId/private', () => {
     it('should return the quiz for owners/admins', () => {
       return request(app.getHttpServer())
-        .get(`/quiz/${mockQuiz.id}/company/${mockCompany.id}/private`)
+        .get(`${baseUrl}/${mockQuiz.id}/company/${mockCompany.id}/private`)
         .expect(200)
         .expect((res) => {
           expect(res.body.id).toEqual(mockQuiz.id);
@@ -143,7 +133,7 @@ describe('QuizController (e2e)', () => {
 
     it('should fail with 400 if UUIDs are invalid', () => {
       return request(app.getHttpServer())
-        .get(`/quiz/invalid-uuid/company/${mockCompany.id}/private`)
+        .get(`${baseUrl}/invalid-uuid/company/${mockCompany.id}/private`)
         .expect(400);
     });
   });
@@ -151,7 +141,7 @@ describe('QuizController (e2e)', () => {
   describe('GET /quiz/:id/company/:companyId/public', () => {
     it('should return the quiz for general members', () => {
       return request(app.getHttpServer())
-        .get(`/quiz/${mockQuiz.id}/company/${mockCompany.id}/public`)
+        .get(`${baseUrl}/${mockQuiz.id}/company/${mockCompany.id}/public`)
         .expect(200)
         .expect((res) => {
           expect(res.body.id).toEqual(mockQuiz.id);
@@ -212,7 +202,7 @@ describe('QuizController (e2e)', () => {
       };
 
       return request(app.getHttpServer())
-        .put(`/quiz/${mockQuiz.id}/company/${mockCompany.id}`)
+        .put(`${baseUrl}/${mockQuiz.id}/company/${mockCompany.id}`)
         .send(updateDto)
         .expect(200)
         .expect((res) => {
@@ -228,7 +218,7 @@ describe('QuizController (e2e)', () => {
   describe('DELETE /quiz/:id/company/:companyId', () => {
     it('should delete the quiz', () => {
       return request(app.getHttpServer())
-        .delete(`/quiz/${mockQuiz.id}/company/${mockCompany.id}`)
+        .delete(`${baseUrl}/${mockQuiz.id}/company/${mockCompany.id}`)
         .expect(200)
         .expect(() => {
           expect(quizService.deleteBy).toHaveBeenCalledWith({
