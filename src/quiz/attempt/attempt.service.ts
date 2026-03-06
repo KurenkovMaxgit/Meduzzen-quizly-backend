@@ -5,7 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { QuizService } from '../quiz.service';
 import { AnswerCorrectness } from '../../utils/enums';
 import { CreateAttemptDto } from './dto/create-attempt.dto';
-import Redis from 'ioredis';
+import { RedisService } from '../../redis/redis.service';
 import { QuestionAttemptSnapshot } from '../../common/interfaces/question-attempt-snapshot.interface';
 import { User } from '../../common/entities/user.entity';
 import { plainToInstance } from 'class-transformer';
@@ -22,7 +22,7 @@ export class AttemptService {
     @InjectRepository(QuizAttempt)
     private readonly attemptsRepository: Repository<QuizAttempt>,
     private readonly quizService: QuizService,
-    @Inject('REDIS_CLIENT') private readonly redis: Redis,
+    @Inject(RedisService) private readonly redisService: RedisService,
     private readonly logger: Logger,
   ) {}
 
@@ -88,7 +88,7 @@ export class AttemptService {
   ): Promise<QuizAttempt | null> {
     if (where.id) {
       const redisKey = `attempt:${where.id}`;
-      const cachedData = await this.redis.get(redisKey);
+      const cachedData = await this.redisService.get(redisKey);
 
       if (cachedData) {
         const parsedAttempt = plainToInstance(QuizAttempt, JSON.parse(cachedData));
@@ -142,7 +142,7 @@ export class AttemptService {
       const correctAnswers = question.answers.filter(
         (a: { correctness: AnswerCorrectness }) => a.correctness === AnswerCorrectness.CORRECT,
       );
-      const correctAnswerIds = correctAnswers.map((a: { id: any }) => a.id);
+      const correctAnswerIds = correctAnswers.map((a: { id: string }) => a.id);
       const userSubmittedIds = userSubmittedAnswers[question.id] || [];
 
       if (question.type === 'single_choice' && userSubmittedIds.length > 1) {
@@ -176,7 +176,7 @@ export class AttemptService {
         prompt: question.prompt,
         userAnswers: question.answers
           .filter((answer: { id: string }) => userSubmittedIds.includes(answer.id))
-          .map((answer: { id: any; content: any }) => ({
+          .map((answer: { id: string; content: string }) => ({
             answerId: answer.id,
             content: answer.content,
             isCorrect: correctAnswerIds.includes(answer.id),
@@ -193,7 +193,7 @@ export class AttemptService {
     const TTL_SECONDS = 48 * 60 * 60;
 
     try {
-      await this.redis.set(redisKey, JSON.stringify(attempt), 'EX', TTL_SECONDS);
+      await this.redisService.set(redisKey, JSON.stringify(attempt), TTL_SECONDS);
     } catch (error) {
       this.logger.error(`Failed to save attempt to Redis: ${attempt.id}`, error);
     }
