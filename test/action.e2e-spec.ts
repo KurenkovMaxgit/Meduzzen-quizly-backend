@@ -5,16 +5,41 @@ import { ActionController } from '../src/action/action.controller';
 import { ActionService } from '../src/action/action.service';
 import { JwtAuthGuard } from '../src/auth/guards/auth-jwt.guard';
 import { CompanyRolesGuard } from '../src/company/guards/company-role.guard';
-import { ActionDecision, ActionType } from '../src/utils/enums';
+import { ActionDecision, ActionStatus, ActionType } from '../src/utils/enums';
 import { mockUser } from '../src/mock/user-tests.mock';
 import { mockCompany } from '../src/mock/company-tests.mock';
-import { mockInvite, mockActionService, mockRequest } from '../src/mock/actions-tests.mock';
-import { mockCompanyRolesGuard, mockJwtAuthGuard } from '../src/mock/auth-tests.mock';
 
 describe('ActionController (e2e)', () => {
   let app: INestApplication;
   let actionService: ActionService;
-  const baseUrl = `/action`;
+
+  const mockAction = {
+    id: '5a0e32a7-5d95-42a1-bb0e-d4ad33c4c1bb',
+    type: ActionType.INVITE,
+    status: ActionStatus.PENDING,
+    company: mockCompany,
+    subject: mockUser,
+  };
+
+  const mockActionService = {
+    create: jest.fn().mockResolvedValue(mockAction),
+    cancelAction: jest.fn().mockResolvedValue({ ...mockAction, status: 'canceled' }),
+    manageInvite: jest.fn().mockResolvedValue({ ...mockAction, status: 'accepted' }),
+    manageRequest: jest.fn().mockResolvedValue({ ...mockAction, status: 'accepted' }),
+    findAll: jest.fn().mockResolvedValue({ items: [mockAction], totalCount: 1 }),
+  };
+
+  const mockJwtAuthGuard = {
+    canActivate: (context: ExecutionContext) => {
+      const req = context.switchToHttp().getRequest();
+      req.user = mockUser;
+      return true;
+    },
+  };
+
+  const mockCompanyRolesGuard = {
+    canActivate: () => true,
+  };
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -48,10 +73,10 @@ describe('ActionController (e2e)', () => {
       const targetUserId = '5a0e32a7-5d95-42a1-bb0e-d4ad33c4c1bb';
 
       return request(app.getHttpServer())
-        .post(`${baseUrl}/invite/${targetUserId}/to/${mockCompany.id}`)
+        .post(`/action/invite/${targetUserId}/to/${mockCompany.id}`)
         .expect(201)
         .expect((res) => {
-          expect(res.body.id).toEqual(mockInvite.id);
+          expect(res.body.id).toEqual(mockAction.id);
           expect(actionService.create).toHaveBeenCalledWith(
             mockUser.id,
             mockCompany.id,
@@ -64,19 +89,17 @@ describe('ActionController (e2e)', () => {
     });
 
     it('should fail with 400 if UUIDs are invalid', () => {
-      return request(app.getHttpServer())
-        .post(`${baseUrl}/invite/bad-id/to/bad-company`)
-        .expect(400);
+      return request(app.getHttpServer()).post(`/action/invite/bad-id/to/bad-company`).expect(400);
     });
   });
 
   describe('POST /action/invite/:id/cancel', () => {
     it('should cancel an invite', () => {
       return request(app.getHttpServer())
-        .post(`${baseUrl}/invite/${mockInvite.id}/cancel`)
+        .post(`/action/invite/${mockAction.id}/cancel`)
         .expect(201)
         .expect((res) => {
-          expect(actionService.cancelAction).toHaveBeenCalledWith(mockInvite.id, mockUser.id);
+          expect(actionService.cancelAction).toHaveBeenCalledWith(mockAction.id, mockUser.id);
         });
     });
   });
@@ -84,11 +107,11 @@ describe('ActionController (e2e)', () => {
   describe('POST /action/invite/:id/:action', () => {
     it('should accept an invite', () => {
       return request(app.getHttpServer())
-        .post(`${baseUrl}/invite/${mockInvite.id}/${ActionDecision.ACCEPT}`)
+        .post(`/action/invite/${mockAction.id}/${ActionDecision.ACCEPT}`)
         .expect(201)
         .expect((res) => {
           expect(actionService.manageInvite).toHaveBeenCalledWith(
-            mockInvite.id,
+            mockAction.id,
             mockUser.id,
             ActionDecision.ACCEPT,
           );
@@ -97,7 +120,7 @@ describe('ActionController (e2e)', () => {
 
     it('should fail with 400 if action is invalid enum', () => {
       return request(app.getHttpServer())
-        .post(`${baseUrl}/invite/${mockInvite.id}/invalid-decision`)
+        .post(`/action/invite/${mockAction.id}/invalid-decision`)
         .expect(400);
     });
   });
@@ -105,7 +128,7 @@ describe('ActionController (e2e)', () => {
   describe('POST /action/request/:companyId', () => {
     it('should create a join request', () => {
       return request(app.getHttpServer())
-        .post(`${baseUrl}/request/${mockCompany.id}`)
+        .post(`/action/request/${mockCompany.id}`)
         .expect(201)
         .expect((res) => {
           expect(actionService.create).toHaveBeenCalledWith(
@@ -123,10 +146,10 @@ describe('ActionController (e2e)', () => {
   describe('POST /action/request/:id/cancel', () => {
     it('should cancel a join request', () => {
       return request(app.getHttpServer())
-        .post(`${baseUrl}/request/${mockRequest.id}/cancel`)
+        .post(`/action/request/${mockAction.id}/cancel`)
         .expect(201)
         .expect(() => {
-          expect(actionService.cancelAction).toHaveBeenCalledWith(mockRequest.id, mockUser.id);
+          expect(actionService.cancelAction).toHaveBeenCalledWith(mockAction.id, mockUser.id);
         });
     });
   });
@@ -134,11 +157,11 @@ describe('ActionController (e2e)', () => {
   describe('POST /action/request/:id/:action', () => {
     it('should accept a join request', () => {
       return request(app.getHttpServer())
-        .post(`${baseUrl}/request/${mockRequest.id}/${ActionDecision.ACCEPT}`)
+        .post(`/action/request/${mockAction.id}/${ActionDecision.ACCEPT}`)
         .expect(201)
         .expect(() => {
           expect(actionService.manageRequest).toHaveBeenCalledWith(
-            mockRequest.id,
+            mockAction.id,
             mockUser.id,
             ActionDecision.ACCEPT,
           );
@@ -149,7 +172,7 @@ describe('ActionController (e2e)', () => {
   describe('GET /action/list/:actionType', () => {
     it('should return user actions (my actions)', () => {
       return request(app.getHttpServer())
-        .get(`${baseUrl}/list/${ActionType.INVITE}`)
+        .get(`/action/list/${ActionType.INVITE}`)
         .expect(200)
         .expect((res) => {
           expect(res.body.items).toHaveLength(1);
@@ -167,7 +190,7 @@ describe('ActionController (e2e)', () => {
   describe('GET /action/list/:companyId/:actionType', () => {
     it('should return company actions', () => {
       return request(app.getHttpServer())
-        .get(`${baseUrl}/list/${mockCompany.id}/${ActionType.REQUEST}`)
+        .get(`/action/list/${mockCompany.id}/${ActionType.REQUEST}`)
         .expect(200)
         .expect((res) => {
           expect(res.body.items).toHaveLength(1);
@@ -183,7 +206,7 @@ describe('ActionController (e2e)', () => {
 
     it('should fail with 400 on invalid enum type', () => {
       return request(app.getHttpServer())
-        .get(`${baseUrl}/list/${mockCompany.id}/invalid-type`)
+        .get(`/action/list/${mockCompany.id}/invalid-type`)
         .expect(400);
     });
   });

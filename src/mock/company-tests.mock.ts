@@ -1,3 +1,6 @@
+import { EntityManager } from 'typeorm';
+import { CompanyUser } from '../common/entities/company-user.entity';
+import { Company } from '../common/entities/company.entity';
 import { CompanyRole, CompanyStatus } from '../utils/enums';
 import { mockUser } from './user-tests.mock';
 
@@ -17,7 +20,7 @@ export const mockCompanyUser = {
   role: CompanyRole.OWNER,
 };
 
-export const mockCompanyQueryBuilder = {
+export const mockQueryBuilder = {
   alias: 'company',
   andWhere: jest.fn().mockReturnThis(),
   orWhere: jest.fn().mockReturnThis(),
@@ -38,7 +41,7 @@ export const mockCompanyRepository = {
   findOneBy: jest.fn(),
   merge: jest.fn(),
   delete: jest.fn(),
-  createQueryBuilder: jest.fn(() => mockCompanyQueryBuilder),
+  createQueryBuilder: jest.fn(() => mockQueryBuilder),
 };
 
 export const mockCompanyUserRepository = {
@@ -50,18 +53,15 @@ export const mockCompanyUserRepository = {
   delete: jest.fn(),
 };
 
-export const mockCompanyService = {
-  create: jest.fn().mockResolvedValue(mockCompany),
-  findAll: jest.fn().mockResolvedValue({ items: [mockCompany], totalCount: 1 }),
-  findOneBy: jest.fn().mockImplementation((where) => {
-    if (where.id === mockCompany.id) return Promise.resolve(mockCompany);
-    return Promise.resolve(null);
+export const mockEntityManager = {
+  getRepository: jest.fn((entity) => {
+    if (entity === Company) return mockCompanyRepository;
+    if (entity === CompanyUser) return mockCompanyUserRepository;
+    return null;
   }),
-  updateBy: jest.fn().mockResolvedValue({ ...mockCompany, name: 'Updated Name' }),
-  deleteBy: jest.fn().mockResolvedValue({ affected: 1 }),
-  updateCompanyUsersRole: jest.fn().mockResolvedValue({ success: true }),
-  addNewCompanyOwner: jest.fn().mockResolvedValue({ affected: 1 }),
-  deleteCompanyUsers: jest.fn().mockResolvedValue({ affected: 1 }),
-  getCompanyUserRole: jest.fn(),
-  addMember: jest.fn(),
+  save: jest.fn(),
+} as unknown as jest.Mocked<EntityManager>;
+
+export const mockDataSource = {
+  transaction: jest.fn((cb) => cb(mockEntityManager)),
 };

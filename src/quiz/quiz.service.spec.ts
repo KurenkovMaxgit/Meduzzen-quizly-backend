@@ -12,8 +12,8 @@ import {
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { QuizQuestionType, AnswerCorrectness, NotificationType } from '../utils/enums';
 import { mockCompany } from '../mock/company-tests.mock';
-import { mockQuizQueryBuilder, mockQuiz, mockQuizRepository } from '../mock/quiz-tests.mock';
-import { mockLogger } from '../mock/common-tests.mock';
+import { mockQueryBuilder, mockQuiz, mockQuizRepository } from '../mock/quiz-tests.mock';
+import { mockLogger } from '../mock/actions-tests.mock';
 
 describe('QuizService', () => {
   let service: QuizService;
@@ -35,6 +35,7 @@ describe('QuizService', () => {
           provide: Logger,
           useValue: mockLogger,
         },
+        // 2. 👇 Provide the mock EventEmitter
         {
           provide: EventEmitter2,
           useValue: mockEventEmitter,
@@ -81,8 +82,9 @@ describe('QuizService', () => {
         relations: ['company', 'questions', 'questions.answers'],
       });
 
+      // 3. 👇 Verify the event was emitted with the correct payload
       expect(mockEventEmitter.emit).toHaveBeenCalledWith('notification.broadcast_to_company', {
-        companyId: mockQuiz.company.id,
+        companyId: mockQuiz.company.id, // Comes from the populated mock
         type: NotificationType.QUIZ_CREATED,
         message: `A new quiz "${mockQuiz.title}" is available!`,
         metadata: { quizId: 'new-quiz-id' },
@@ -99,6 +101,7 @@ describe('QuizService', () => {
         InternalServerErrorException,
       );
 
+      // Ensure event is NOT emitted if creation fails
       expect(mockEventEmitter.emit).not.toHaveBeenCalled();
     });
 
@@ -139,10 +142,10 @@ describe('QuizService', () => {
       const result = await service.findAll(mockCompany.id, query as any);
 
       expect(repository.createQueryBuilder).toHaveBeenCalledWith('quiz');
-      expect(mockQuizQueryBuilder.andWhere).toHaveBeenCalledWith('quiz.companyId = :companyId', {
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('quiz.companyId = :companyId', {
         companyId: mockCompany.id,
       });
-      expect(mockQuizQueryBuilder.take).toHaveBeenCalledWith(10);
+      expect(mockQueryBuilder.take).toHaveBeenCalledWith(10);
       expect(result).toEqual({ items: [mockQuiz], totalCount: 1 });
     });
   });
@@ -165,7 +168,7 @@ describe('QuizService', () => {
       );
       expect(repository.findOne).toHaveBeenCalledWith(
         expect.objectContaining({
-          relations: ['questions'],
+          relations: ['questions'], // 'invalidRelation' should be stripped
         }),
       );
     });

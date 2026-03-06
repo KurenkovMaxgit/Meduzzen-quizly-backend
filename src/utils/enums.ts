@@ -43,8 +43,7 @@ export enum AnswerCorrectness {
 
 export enum NotificationType {
   QUIZ_CREATED = 'quiz_created',
-  SYSTEM_ALERT = 'system_alert',
-  QUIZ_REMINDER = 'quiz_reminder',
+  SYSTEM_ALERT = 'systemAlert',
 }
 
 export enum NotificationStatus {

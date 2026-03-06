@@ -8,13 +8,37 @@ import { ConfigService } from '@nestjs/config';
 import { JwtAuthGuard } from '../src/auth/guards/auth-jwt.guard';
 import { REFRESH_TOKEN_KEY } from '../src/auth/constants/cookie.constants';
 import { mockUser } from '../src/mock/user-tests.mock';
-import { mockAuthService, mockJwtAuthGuard, mockTokens } from '../src/mock/auth-tests.mock';
-import { mockConfigService } from '../src/mock/common-tests.mock';
 
 describe('AuthController (e2e)', () => {
   let app: INestApplication;
   let authService: AuthService;
-  const baseUrl = `/auth`;
+
+  const mockTokens = {
+    accessToken: 'mock_access_token',
+    refreshToken: 'mock_refresh_token',
+  };
+
+  const mockAuthService = {
+    register: jest.fn().mockResolvedValue({ user: mockUser, tokens: mockTokens }),
+    validateUserPassword: jest.fn().mockResolvedValue({ user: mockUser, tokens: mockTokens }),
+    refreshLocalToken: jest.fn().mockResolvedValue({ accessToken: 'new_access_token' }),
+    logout: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const mockConfigService = {
+    get: jest.fn((key) => {
+      if (key === 'nodeEnv') return 'development';
+      return null;
+    }),
+  };
+
+  const mockJwtAuthGuard = {
+    canActivate: (context) => {
+      const req = context.switchToHttp().getRequest();
+      req.user = mockUser;
+      return true;
+    },
+  };
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -51,7 +75,7 @@ describe('AuthController (e2e)', () => {
       };
 
       const res = await request(app.getHttpServer())
-        .post(`${baseUrl}/signup`)
+        .post('/auth/signup')
         .send(signupDto)
         .expect(201);
 
@@ -69,10 +93,7 @@ describe('AuthController (e2e)', () => {
     it('should login user and set refresh token cookie', async () => {
       const loginDto = { email: 'test@example.com', password: 'password123' };
 
-      const res = await request(app.getHttpServer())
-        .post(`${baseUrl}/login`)
-        .send(loginDto)
-        .expect(201);
+      const res = await request(app.getHttpServer()).post('/auth/login').send(loginDto).expect(201);
 
       expect(res.body.accessToken).toBe(mockTokens.accessToken);
 
@@ -87,7 +108,7 @@ describe('AuthController (e2e)', () => {
       const cookieValue = `${REFRESH_TOKEN_KEY}=${mockTokens.refreshToken}`;
 
       const res = await request(app.getHttpServer())
-        .post(`${baseUrl}/refresh`)
+        .post('/auth/refresh')
         .set('Cookie', [cookieValue])
         .expect(201);
 
@@ -97,13 +118,13 @@ describe('AuthController (e2e)', () => {
     });
 
     it('should throw 401 if cookie is missing', () => {
-      return request(app.getHttpServer()).post(`${baseUrl}/refresh`).expect(401);
+      return request(app.getHttpServer()).post('/auth/refresh').expect(401);
     });
   });
 
   describe('POST /auth/logout', () => {
     it('should clear the refresh token cookie', async () => {
-      const res = await request(app.getHttpServer()).post(`${baseUrl}/logout`).expect(201);
+      const res = await request(app.getHttpServer()).post('/auth/logout').expect(201);
 
       const cookies = res.get('Set-Cookie');
       const refreshCookie = cookies?.find((c) => c.includes(REFRESH_TOKEN_KEY));

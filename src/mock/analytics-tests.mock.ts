@@ -1,4 +1,4 @@
-export const mockAnalyticsQueryBuilder = {
+export const localMockQueryBuilder = {
   select: jest.fn().mockReturnThis(),
   addSelect: jest.fn().mockReturnThis(),
   where: jest.fn().mockReturnThis(),
@@ -13,8 +13,8 @@ export const mockAnalyticsQueryBuilder = {
   getRawMany: jest.fn(),
 };
 
-export const mockAttemptRepository = {
-  createQueryBuilder: jest.fn(() => mockAnalyticsQueryBuilder),
+export const localMockAttemptRepository = {
+  createQueryBuilder: jest.fn(() => localMockQueryBuilder),
 };
 
 export const mockDynamicsRaw = [{ quizId: '1', averageScore: 80 }];

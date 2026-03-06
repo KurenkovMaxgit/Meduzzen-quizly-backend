@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { In, Repository, UpdateResult } from 'typeorm';
 import { Notification } from '../common/entities/notification.entity';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -8,8 +8,6 @@ import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { applyQueryFilters } from '../utils/find-all-query-builder.util';
 import { FindAllNotificationsDto, FindNotificationDto } from './dto/find-notification.dto';
 import { CompanyService } from '../company/company.service';
-import { QuizAttempt } from '../common/entities/attempt.entity';
-import { User } from '../common/entities/user.entity';
 
 const ALLOWED_NOTIFICATION_RELATIONS = ['company'];
 
@@ -20,7 +18,6 @@ export class NotificationService {
     private readonly notificationsRepository: Repository<Notification>,
     private readonly companyService: CompanyService,
     private readonly eventEmitter: EventEmitter2,
-    private readonly logger: Logger,
   ) {}
 
   @OnEvent('notification.broadcast_to_company')
@@ -85,67 +82,5 @@ export class NotificationService {
 
   async getCountByStatus(userId: string, status: NotificationStatus): Promise<number> {
     return this.notificationsRepository.count({ where: { userId, status } });
-  }
-
-  async checkAndNotifyLapsedUsers() {
-    const overdueUsers = await this.notificationsRepository.manager
-      .createQueryBuilder(User, 'user')
-      .select(['user.id AS user_id', 'quiz.id AS quiz_id', 'quiz.title AS quiz_title'])
-      .innerJoin('user.memberships', 'companyUser')
-      .innerJoin('companyUser.company', 'company')
-      .innerJoin('company.quizzes', 'quiz')
-      .leftJoin(
-        (subQuery) => {
-          return subQuery
-            .select('quizAttempt.userId', 'userId')
-            .addSelect('quizAttempt.quizId', 'quizId')
-            .addSelect('MAX(quizAttempt.createdAt)', 'lastAttemptDate')
-            .from(QuizAttempt, 'quizAttempt')
-            .groupBy('quizAttempt.userId')
-            .addGroupBy('quizAttempt.quizId');
-        },
-        'last_attempt',
-        'last_attempt."userId" = user.id AND last_attempt."quizId" = quiz.id',
-      )
-      .leftJoin(
-        'notification',
-        'existing_notification',
-        `existing_notification.userId = user.id AND 
-       existing_notification.type = :notificationType AND 
-       existing_notification.status = :notificationStatus AND
-       existing_notification.metadata->>'quizId' = CAST(quiz.id AS VARCHAR)`,
-        {
-          notificationType: NotificationType.QUIZ_REMINDER,
-          notificationStatus: NotificationStatus.UNREAD,
-        },
-      )
-      .where(
-        `(last_attempt."lastAttemptDate" IS NULL OR 
-        last_attempt."lastAttemptDate" < NOW() - (quiz."completionFrequency" * INTERVAL '1 day'))`,
-      )
-      .andWhere('existing_notification.id IS NULL')
-      .getRawMany();
-
-    if (overdueUsers.length === 0) {
-      this.logger.log('No new overdue users to notify.');
-      return;
-    }
-
-    const notifications = overdueUsers.map((record) => ({
-      user: { id: record.user_id },
-      text: `Reminder: It's time to take the quiz "${record.quiz_title}"!`,
-      type: NotificationType.QUIZ_REMINDER,
-      metadata: { quizId: record.quiz_id, quizTitle: record.quiz_title },
-      status: NotificationStatus.UNREAD,
-    }));
-
-    const savedNotifications = await this.notificationsRepository.save(notifications);
-
-    this.eventEmitter.emit('ws.send_notification', {
-      notifications: savedNotifications,
-    });
-
-    const uniqueUserIds = [...new Set(overdueUsers.map((u) => u.user_id))];
-    this.logger.log(`Sent reminders to ${uniqueUserIds.length} users.`);
   }
 }
