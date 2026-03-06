@@ -9,7 +9,8 @@ import {
   NotFoundException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { QuizQuestionType, AnswerCorrectness } from '../utils/enums';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { QuizQuestionType, AnswerCorrectness, NotificationType } from '../utils/enums';
 import { mockCompany } from '../mock/company-tests.mock';
 import { mockQueryBuilder, mockQuiz, mockQuizRepository } from '../mock/quiz-tests.mock';
 import { mockLogger } from '../mock/actions-tests.mock';
@@ -17,6 +18,10 @@ import { mockLogger } from '../mock/actions-tests.mock';
 describe('QuizService', () => {
   let service: QuizService;
   let repository: Repository<Quiz>;
+
+  const mockEventEmitter = {
+    emit: jest.fn(),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -29,6 +34,11 @@ describe('QuizService', () => {
         {
           provide: Logger,
           useValue: mockLogger,
+        },
+        // 2. 👇 Provide the mock EventEmitter
+        {
+          provide: EventEmitter2,
+          useValue: mockEventEmitter,
         },
       ],
     }).compile();
@@ -57,7 +67,7 @@ describe('QuizService', () => {
       ],
     } as any;
 
-    it('should create and return a fully populated quiz', async () => {
+    it('should create, return a fully populated quiz, and emit notification', async () => {
       mockQuizRepository.save.mockResolvedValue({ id: 'new-quiz-id' });
       mockQuizRepository.findOne.mockResolvedValue({ ...mockQuiz, id: 'new-quiz-id' });
 
@@ -71,6 +81,15 @@ describe('QuizService', () => {
         where: { id: 'new-quiz-id' },
         relations: ['company', 'questions', 'questions.answers'],
       });
+
+      // 3. 👇 Verify the event was emitted with the correct payload
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith('notification.broadcast_to_company', {
+        companyId: mockQuiz.company.id, // Comes from the populated mock
+        type: NotificationType.QUIZ_CREATED,
+        message: `A new quiz "${mockQuiz.title}" is available!`,
+        metadata: { quizId: 'new-quiz-id' },
+      });
+
       expect(result).toEqual({ ...mockQuiz, id: 'new-quiz-id' });
     });
 
@@ -81,6 +100,9 @@ describe('QuizService', () => {
       await expect(service.create(mockCompany.id, createDto)).rejects.toThrow(
         InternalServerErrorException,
       );
+
+      // Ensure event is NOT emitted if creation fails
+      expect(mockEventEmitter.emit).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestException if SINGLE_CHOICE question has 0 correct answers', async () => {

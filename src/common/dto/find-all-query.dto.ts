@@ -7,6 +7,7 @@ import {
   IsInt,
   Min,
   IsArray,
+  Max,
 } from 'class-validator';
 import { Type as ClassTransformerType, plainToInstance, Transform } from 'class-transformer';
 
@@ -54,13 +55,14 @@ export function FilterDto<T>(classRef: Type<T>): Type<FindAllQuery<T>> {
     @IsInt()
     @Min(0)
     @ClassTransformerType(() => Number)
-    skip?: number;
+    skip?: number = 0;
 
     @IsOptional()
     @IsInt()
     @Min(0)
+    @Max(100)
     @ClassTransformerType(() => Number)
-    take?: number;
+    take?: number = 10;
 
     @IsOptional()
     @Transform(({ value }) => {
@@ -70,6 +72,16 @@ export function FilterDto<T>(classRef: Type<T>): Type<FindAllQuery<T>> {
       const instance = plainToInstance(classRef, parsed);
 
       return cleanUndefined(instance);
+    })
+    @IsOptional()
+    @Transform(({ value }) => {
+      try {
+        const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+        const instance = plainToInstance(classRef, parsed);
+        return cleanUndefined(instance);
+      } catch (error) {
+        return value;
+      }
     })
     @IsObject()
     @ValidateNested()

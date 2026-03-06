@@ -8,7 +8,7 @@ import {
 import { DeleteResult, FindOneOptions, Repository } from 'typeorm';
 import { Quiz } from '../common/entities/quiz.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { QuizQuestionType, AnswerCorrectness } from '../utils/enums';
+import { QuizQuestionType, AnswerCorrectness, NotificationType } from '../utils/enums';
 import { CreateQuestionDto } from './question/dto/question/create-question.dto';
 import { UpdateQuestionDto } from './question/dto/question/update-question.dto';
 import { PaginatedData } from '../utils/response.interface';
@@ -16,6 +16,7 @@ import { applyQueryFilters } from '../utils/find-all-query-builder.util';
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { FindAllQuizzesDto, FindQuizDto } from './dto/find-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 const ALLOWED_QUIZ_RELATIONS = ['questions', 'questions.answers'];
 
@@ -25,6 +26,7 @@ export class QuizService {
     @InjectRepository(Quiz)
     private readonly quizzesRepository: Repository<Quiz>,
     private readonly logger: Logger,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async create(companyId: string, data: CreateQuizDto): Promise<Quiz> {
@@ -42,6 +44,13 @@ export class QuizService {
     if (!populatedQuiz) {
       throw new InternalServerErrorException('Failed to retrieve the created quiz');
     }
+
+    this.eventEmitter.emit('notification.broadcast_to_company', {
+      companyId: populatedQuiz.company.id,
+      type: NotificationType.QUIZ_CREATED,
+      message: `A new quiz "${populatedQuiz.title}" is available!`,
+      metadata: { quizId: populatedQuiz.id },
+    });
 
     return populatedQuiz;
   }

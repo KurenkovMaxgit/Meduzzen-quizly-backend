@@ -38,3 +38,9 @@ export const mockQueryBuilder = {
   getManyAndCount: jest.fn().mockResolvedValue([[mockUser], 1]),
   getOne: jest.fn().mockResolvedValue(mockUser),
 };
+
+export const mockUserService = {
+  create: jest.fn(),
+  findOneBy: jest.fn(),
+  updateBy: jest.fn(),
+};

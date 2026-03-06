@@ -40,3 +40,14 @@ export enum AnswerCorrectness {
   CORRECT = 'correct',
   INCORRECT = 'incorrect',
 }
+
+export enum NotificationType {
+  QUIZ_CREATED = 'quiz_created',
+  SYSTEM_ALERT = 'systemAlert',
+}
+
+export enum NotificationStatus {
+  UNREAD = 'unread',
+  READ = 'read',
+  ARCHIVED = 'archived',
+}
