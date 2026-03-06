@@ -5,10 +5,9 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Action } from 'rxjs/internal/scheduler/Action';
 import { DataSource } from 'typeorm';
 import { CompanyService } from '../company/company.service';
+import { mockActionRepository, mockCompanyService, mockLogger } from '../mock/actions-tests.mock';
+import { mockDataSource } from '../mock/company-tests.mock';
 import { ActionService } from './action.service';
-import { mockActionRepository } from '../mock/actions-tests.mock';
-import { mockCompanyService } from '../mock/company-tests.mock';
-import { mockDataSource, mockLogger } from '../mock/common-tests.mock';
 
 describe('ActionController', () => {
   let controller: ActionController;

@@ -1,7 +1,5 @@
 import { UserRole } from '../utils/enums';
 
-export const VALID_UUID = 'f77314d7-8429-49f8-a719-b0cdd54bade4';
-
 export const mockUser = {
   id: 'f77314d7-8429-49f8-a719-b0cdd54bade4',
   email: 'example@test.com',
@@ -22,10 +20,10 @@ export const mockUserRepository = {
   findOneBy: jest.fn(),
   merge: jest.fn(),
   delete: jest.fn(),
-  createQueryBuilder: jest.fn(() => mockUserQueryBuilder),
+  createQueryBuilder: jest.fn(() => mockQueryBuilder),
 };
 
-export const mockUserQueryBuilder = {
+export const mockQueryBuilder = {
   alias: 'user',
   select: jest.fn().mockReturnThis(),
   addSelect: jest.fn().mockReturnThis(),
@@ -43,11 +41,6 @@ export const mockUserQueryBuilder = {
 
 export const mockUserService = {
   create: jest.fn(),
-  findAll: jest.fn().mockResolvedValue({ items: [mockUser], totalCount: 1 }),
-  findOneBy: jest.fn().mockImplementation((criteria) => {
-    if (criteria.id === VALID_UUID) return Promise.resolve(mockUser);
-    return Promise.resolve(null);
-  }),
-  updateBy: jest.fn().mockResolvedValue({ ...mockUser, firstName: 'Updated' }),
-  deleteBy: jest.fn().mockResolvedValue({ affected: 1 }),
+  findOneBy: jest.fn(),
+  updateBy: jest.fn(),
 };

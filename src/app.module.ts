@@ -14,7 +14,6 @@ import { QuizModule } from './quiz/quiz.module';
 import { RedisModule } from './redis/redis.module';
 import { NotificationModule } from './notification/notification.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -29,7 +28,6 @@ import { ScheduleModule } from '@nestjs/schedule';
       }),
     }),
     EventEmitterModule.forRoot(),
-    ScheduleModule.forRoot(),
     UserModule,
     AuthModule,
     CompanyModule,
