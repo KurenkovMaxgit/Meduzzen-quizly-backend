@@ -14,7 +14,8 @@ import {
   mockAttemptQueryBuilder,
   mockAttempt,
 } from '../../mock/attempts-tests.mock';
-import { mockRedis, mockLogger } from '../../mock/common-tests.mock';
+import { mockRedisService, mockLogger } from '../../mock/common-tests.mock';
+import { RedisService } from '../../redis/redis.service';
 
 describe('AttemptService', () => {
   let service: AttemptService;
@@ -34,8 +35,8 @@ describe('AttemptService', () => {
           useValue: mockQuizService,
         },
         {
-          provide: 'REDIS_CLIENT',
-          useValue: mockRedis,
+          provide: RedisService,
+          useValue: mockRedisService,
         },
         {
           provide: Logger,
@@ -94,10 +95,9 @@ describe('AttemptService', () => {
         }),
       );
 
-      expect(mockRedis.set).toHaveBeenCalledWith(
+      expect(mockRedisService.set).toHaveBeenCalledWith(
         `attempt:${mockAttempt.id}`,
-        expect.any(String),
-        'EX',
+        expect.stringContaining(mockAttempt.id),
         172800,
       );
 
@@ -146,20 +146,20 @@ describe('AttemptService', () => {
 
   describe('findOneBy', () => {
     it('should return from Redis cache if available and valid', async () => {
-      mockRedis.get.mockResolvedValue(JSON.stringify(mockAttempt));
+      mockRedisService.get.mockResolvedValue(JSON.stringify(mockAttempt));
 
       const result = await service.findOneBy({
         id: mockAttempt.id,
         company: { id: mockCompany.id },
       });
 
-      expect(mockRedis.get).toHaveBeenCalledWith(`attempt:${mockAttempt.id}`);
+      expect(mockRedisService.get).toHaveBeenCalledWith(`attempt:${mockAttempt.id}`);
       expect(attemptRepo.findOne).not.toHaveBeenCalled();
       expect(result?.id).toEqual(mockAttempt.id);
     });
 
     it('should return null if Redis cache company validation fails', async () => {
-      mockRedis.get.mockResolvedValue(JSON.stringify(mockAttempt));
+      mockRedisService.get.mockResolvedValue(JSON.stringify(mockAttempt));
 
       const result = await service.findOneBy({
         id: mockAttempt.id,
@@ -171,16 +171,15 @@ describe('AttemptService', () => {
     });
 
     it('should fetch from DB and cache if not in Redis', async () => {
-      mockRedis.get.mockResolvedValue(null);
+      mockRedisService.get.mockResolvedValue(null);
       mockAttemptRepository.findOne.mockResolvedValue(mockAttempt);
 
       const result = await service.findOneBy({ id: mockAttempt.id });
 
       expect(attemptRepo.findOne).toHaveBeenCalled();
-      expect(mockRedis.set).toHaveBeenCalledWith(
+      expect(mockRedisService.set).toHaveBeenCalledWith(
         `attempt:${mockAttempt.id}`,
         expect.any(String),
-        'EX',
         172800,
       );
       expect(result).toEqual(mockAttempt);
