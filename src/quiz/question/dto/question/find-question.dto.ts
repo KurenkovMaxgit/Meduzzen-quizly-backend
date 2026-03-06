@@ -8,7 +8,7 @@ import {
   IsEnum,
   ValidateNested,
 } from 'class-validator';
-import { QuizQuestionType } from '../../../utils/enums';
+import { QuizQuestionType } from '../../../../utils/enums';
 import { FindAnswerDto } from '../answer/find-answer.dto';
 
 export class FindQuestionDto {

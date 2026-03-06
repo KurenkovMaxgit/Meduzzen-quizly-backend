@@ -1,6 +1,6 @@
 import { ArrayMinSize, IsInt, IsString, Length, Min, ValidateNested } from 'class-validator';
-import { CreateQuestionDto } from '../question/create-question.dto';
 import { Type } from 'class-transformer';
+import { CreateQuestionDto } from '../question/dto/question/create-question.dto';
 
 export class CreateQuizDto {
   @Length(1, 250)

@@ -2,8 +2,8 @@ import { Type } from 'class-transformer';
 import { IsOptional, IsUUID, Length, IsString, IsEnum, IsDate, IsInt } from 'class-validator';
 import { FindUserDto } from '../../../user/dto/find-user.dto';
 import { FindCompanyDto } from '../../../company/dto/find-company.dto';
-import { FindQuizDto } from '../quiz/find-quiz.dto';
 import { FilterDto } from '../../../common/dto/find-all-query.dto';
+import { FindQuizDto } from '../../dto/find-quiz.dto';
 
 export class FindAttemptDto {
   @IsOptional()

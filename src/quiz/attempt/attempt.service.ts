@@ -176,7 +176,7 @@ export class AttemptService {
         prompt: question.prompt,
         userAnswers: question.answers
           .filter((answer: { id: string }) => userSubmittedIds.includes(answer.id))
-          .map((answer: { id: any; content: any }) => ({
+          .map((answer: { id: string; content: string }) => ({
             answerId: answer.id,
             content: answer.content,
             isCorrect: correctAnswerIds.includes(answer.id),

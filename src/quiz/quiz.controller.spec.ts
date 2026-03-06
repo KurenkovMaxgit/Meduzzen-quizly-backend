@@ -3,9 +3,9 @@ import { QuizController } from './quiz.controller';
 import { QuizService } from './quiz.service';
 import { JwtAuthGuard } from '../auth/guards/auth-jwt.guard';
 import { CompanyRolesGuard } from '../company/guards/company-role.guard';
-import { PrivateReturnQuizDto } from './dto/quiz/return-quiz.dto';
 import { mockQuiz, mockQuizService } from '../mock/quiz-tests.mock';
 import { mockCompany } from '../mock/company-tests.mock';
+import { PrivateReturnQuizDto } from './dto/return-quiz.dto';
 
 describe('QuizController', () => {
   let controller: QuizController;

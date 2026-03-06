@@ -13,18 +13,18 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { AttemptService } from './attempt.service';
-import { JwtAuthGuard } from '../auth/guards/auth-jwt.guard';
-import { CompanyRolesGuard } from '../company/guards/company-role.guard';
-import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { CreateAttemptDto } from './dto/attempt/create-attempt.dto';
-import { AllowedCompanyRoles } from '../common/decorators/company-roles.decorator';
-import { CompanyRole } from '../utils/enums';
-import { User } from '../common/entities/user.entity';
-import { ReturnAttemptDto } from './dto/attempt/return-attempt.dto';
+import { JwtAuthGuard } from '../../auth/guards/auth-jwt.guard';
+import { CompanyRolesGuard } from '../../company/guards/company-role.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { CreateAttemptDto } from './dto/create-attempt.dto';
+import { AllowedCompanyRoles } from '../../common/decorators/company-roles.decorator';
+import { CompanyRole } from '../../utils/enums';
+import { User } from '../../common/entities/user.entity';
+import { ReturnAttemptDto } from './dto/return-attempt.dto';
 import { plainToInstance } from 'class-transformer';
-import { FindAllAttemptsDto } from './dto/attempt/find-attempt.dto';
+import { FindAllAttemptsDto } from './dto/find-attempt.dto';
 import type { Response } from 'express';
+import { AttemptService } from './attempt.service';
 
 @ApiTags('Quiz Attempts')
 @ApiBearerAuth()
@@ -47,28 +47,6 @@ export class AttemptController {
     @Body() data: CreateAttemptDto,
   ) {
     return this.attemptService.submitAttempt(user, companyId, quizId, data);
-  }
-
-  @ApiOperation({ summary: 'Get user average rating for a specific company.' })
-  @ApiResponse({ status: 200, description: 'Success.' })
-  @AllowedCompanyRoles([CompanyRole.OWNER, CompanyRole.ADMIN, CompanyRole.MEMBER])
-  @Get('rating/company/:companyId')
-  async getCompanyRating(
-    @CurrentUser('id') userId: string,
-    @Param('companyId', ParseUUIDPipe) companyId: string,
-  ) {
-    const rating = await this.attemptService.getUserRating(userId, companyId);
-
-    return { rating };
-  }
-
-  @ApiOperation({ summary: 'Get user overall system rating across all companies.' })
-  @ApiResponse({ status: 200, description: 'Success.' })
-  @Get('rating/overall')
-  async getOverallRating(@CurrentUser('id') userId: string) {
-    const rating = await this.attemptService.getUserRating(userId);
-
-    return { rating };
   }
 
   @ApiOperation({ summary: 'Get all attempts by query parameters.' })

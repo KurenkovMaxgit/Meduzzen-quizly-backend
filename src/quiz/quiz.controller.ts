@@ -17,14 +17,14 @@ import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagg
 import { JwtAuthGuard } from '../auth/guards/auth-jwt.guard';
 import { CompanyRolesGuard } from '../company/guards/company-role.guard';
 import { QuizService } from './quiz.service';
-import { CreateQuizDto } from './dto/quiz/create-quiz.dto';
 import { AllowedCompanyRoles } from '../common/decorators/company-roles.decorator';
-import { PrivateReturnQuizDto, PublicReturnQuizDto } from './dto/quiz/return-quiz.dto';
-import { FindAllQuizzesDto } from './dto/quiz/find-quiz.dto';
-import { UpdateQuizDto } from './dto/quiz/update-quiz.dto';
 import { plainToInstance } from 'class-transformer';
 import { FindOneQueryDto } from '../common/dto/find-one-query.dto';
 import { CompanyRole } from '../utils/enums';
+import { CreateQuizDto } from './dto/create-quiz.dto';
+import { FindAllQuizzesDto } from './dto/find-quiz.dto';
+import { PrivateReturnQuizDto, PublicReturnQuizDto } from './dto/return-quiz.dto';
+import { UpdateQuizDto } from './dto/update-quiz.dto';
 
 @ApiTags('Quizzes')
 @ApiBearerAuth()

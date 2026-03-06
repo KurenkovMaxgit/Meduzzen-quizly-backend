@@ -70,7 +70,6 @@ export class ActionController {
     @Param('id', ParseUUIDPipe) id: string,
     @Param('action', new ParseEnumPipe(ActionDecision)) action: ActionDecision,
   ) {
-    console.log(subject);
     return this.actionService.manageInvite(id, subject, action);
   }
 

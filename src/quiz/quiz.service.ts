@@ -8,14 +8,14 @@ import {
 import { DeleteResult, FindOneOptions, Repository } from 'typeorm';
 import { Quiz } from '../common/entities/quiz.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { CreateQuizDto } from './dto/quiz/create-quiz.dto';
 import { QuizQuestionType, AnswerCorrectness } from '../utils/enums';
-import { CreateQuestionDto } from './dto/question/create-question.dto';
-import { UpdateQuestionDto } from './dto/question/update-question.dto';
+import { CreateQuestionDto } from './question/dto/question/create-question.dto';
+import { UpdateQuestionDto } from './question/dto/question/update-question.dto';
 import { PaginatedData } from '../utils/response.interface';
 import { applyQueryFilters } from '../utils/find-all-query-builder.util';
-import { FindAllQuizzesDto, FindQuizDto } from './dto/quiz/find-quiz.dto';
-import { UpdateQuizDto } from './dto/quiz/update-quiz.dto';
+import { CreateQuizDto } from './dto/create-quiz.dto';
+import { FindAllQuizzesDto, FindQuizDto } from './dto/find-quiz.dto';
+import { UpdateQuizDto } from './dto/update-quiz.dto';
 
 const ALLOWED_QUIZ_RELATIONS = ['questions', 'questions.answers'];
 
