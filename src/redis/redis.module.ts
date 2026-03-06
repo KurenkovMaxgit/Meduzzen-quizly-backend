@@ -1,6 +1,7 @@
 import { Global, Logger, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
+import { RedisService } from './redis.service';
 
 @Global()
 @Module({
@@ -11,7 +12,6 @@ import Redis from 'ioredis';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
         const logger = new Logger('RedisClient');
-        const isNotProd = configService.get<string>('NODE_ENV') !== 'production';
 
         const client = new Redis({
           host: configService.get<string>('REDIS_HOST'),
@@ -27,26 +27,11 @@ import Redis from 'ioredis';
         client.on('close', () => logger.warn('Redis connection closed.'));
         client.on('reconnecting', () => logger.warn('Reconnecting to Redis...'));
 
-        if (isNotProd) {
-          const originalSendCommand = client.sendCommand.bind(client);
-
-          client.sendCommand = function (command, stream) {
-            try {
-              const cmdName = command.name ? command.name.toUpperCase() : 'UNKNOWN';
-              const cmdArgs = command.args ? JSON.stringify(command.args) : '[]';
-
-              logger.debug(`QUERY: ${cmdName} -- PARAMS: ${cmdArgs}`);
-            } catch (_error) {
-              /* empty */
-            }
-
-            return originalSendCommand(command, stream);
-          };
-        }
         return client;
       },
     },
+    RedisService,
   ],
-  exports: ['REDIS_CLIENT'],
+  exports: [RedisService],
 })
 export class RedisModule {}
