@@ -5,8 +5,36 @@ export const mockNotification = {
   status: NotificationStatus.UNREAD,
 };
 
+export const localMockQueryBuilder = {
+  alias: 'notification',
+  andWhere: jest.fn().mockReturnThis(),
+  take: jest.fn().mockReturnThis(),
+  skip: jest.fn().mockReturnThis(),
+  getManyAndCount: jest.fn().mockResolvedValue([[{ id: mockNotification.id }], 1]),
+};
+
+export const localMockManagerQueryBuilder = {
+  select: jest.fn().mockReturnThis(),
+  innerJoin: jest.fn().mockReturnThis(),
+  leftJoin: jest.fn().mockReturnThis(),
+  where: jest.fn().mockReturnThis(),
+  andWhere: jest.fn().mockReturnThis(),
+  getRawMany: jest.fn().mockResolvedValue([]),
+};
+
+export const localMockNotificationRepo = {
+  createQueryBuilder: jest.fn(() => localMockQueryBuilder),
+  save: jest.fn(),
+  update: jest.fn(),
+  count: jest.fn(),
+  manager: {
+    createQueryBuilder: jest.fn(() => localMockManagerQueryBuilder),
+  },
+};
+
 export const mockNotificationService = {
   findAll: jest.fn().mockResolvedValue({ items: [mockNotification], totalCount: 1 }),
   getCountByStatus: jest.fn().mockResolvedValue(5),
   updateStatus: jest.fn().mockResolvedValue({ affected: 2 }),
+  checkAndNotifyLapsedUsers: jest.fn(),
 };
