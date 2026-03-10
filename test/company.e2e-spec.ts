@@ -81,7 +81,7 @@ describe('CompanyController (e2e)', () => {
         });
     });
   });
-  ``;
+
   describe('GET /company/:id', () => {
     it('should return a company by valid UUID', () => {
       return request(app.getHttpServer())
