@@ -66,14 +66,10 @@ describe('AnalyticsService', () => {
     });
 
     it('should return 0 if total questions is 0 to avoid division by zero', async () => {
-<<<<<<< BE-22-add-CodePipeline
       mockAnalyticsQueryBuilder.getRawOne.mockResolvedValue({
         totalCorrect: '0',
         totalQuestions: '0',
       });
-=======
-      mockAnalyticsQueryBuilder.getRawOne.mockResolvedValue({ totalCorrect: '0', totalQuestions: '0' });
->>>>>>> dev
       const result = await service.getUserAverageQuestionPerformance(mockUser.id);
       expect(result).toEqual(0);
     });
@@ -130,7 +126,6 @@ describe('AnalyticsService', () => {
       const result = await service.getUserScoresWithTimeDynamics(mockUser.id, mockCompany.id);
 
       expect(mockAnalyticsQueryBuilder.groupBy).toHaveBeenCalledWith('attempt.quizId');
-<<<<<<< BE-22-add-CodePipeline
       expect(mockAnalyticsQueryBuilder.addGroupBy).toHaveBeenCalledWith(
         'attempt.quizTitleSnapshot',
       );
@@ -139,11 +134,6 @@ describe('AnalyticsService', () => {
         'DATE(attempt.createdAt)',
         'ASC',
       );
-=======
-      expect(mockAnalyticsQueryBuilder.addGroupBy).toHaveBeenCalledWith('attempt.quizTitleSnapshot');
-      expect(mockAnalyticsQueryBuilder.addGroupBy).toHaveBeenCalledWith('DATE(attempt.createdAt)');
-      expect(mockAnalyticsQueryBuilder.orderBy).toHaveBeenCalledWith('DATE(attempt.createdAt)', 'ASC');
->>>>>>> dev
 
       expect(mockAnalyticsQueryBuilder.andWhere).toHaveBeenCalledWith(
         'attempt.companyId = :companyId',
@@ -179,7 +169,6 @@ describe('AnalyticsService', () => {
 
       const result = await service.getCompanyScoresWithTimeDynamics(mockCompany.id);
 
-<<<<<<< BE-22-add-CodePipeline
       expect(mockAnalyticsQueryBuilder.where).toHaveBeenCalledWith(
         'attempt.companyId = :companyId',
         {
@@ -191,13 +180,6 @@ describe('AnalyticsService', () => {
         'DATE(attempt.createdAt)',
         'ASC',
       );
-=======
-      expect(mockAnalyticsQueryBuilder.where).toHaveBeenCalledWith('attempt.companyId = :companyId', {
-        companyId: mockCompany.id,
-      });
-      expect(mockAnalyticsQueryBuilder.groupBy).toHaveBeenCalledWith('DATE(attempt.createdAt)');
-      expect(mockAnalyticsQueryBuilder.orderBy).toHaveBeenCalledWith('DATE(attempt.createdAt)', 'ASC');
->>>>>>> dev
       expect(result).toEqual(mockResult);
     });
   });
@@ -210,7 +192,6 @@ describe('AnalyticsService', () => {
       const result = await service.getCompanyUsersLastCompletions(mockCompany.id);
 
       expect(mockAnalyticsQueryBuilder.leftJoin).toHaveBeenCalledWith('attempt.user', 'user');
-<<<<<<< BE-22-add-CodePipeline
       expect(mockAnalyticsQueryBuilder.where).toHaveBeenCalledWith(
         'attempt.companyId = :companyId',
         {
@@ -223,14 +204,6 @@ describe('AnalyticsService', () => {
         'attempt.createdAt',
         'DESC',
       );
-=======
-      expect(mockAnalyticsQueryBuilder.where).toHaveBeenCalledWith('attempt.companyId = :companyId', {
-        companyId: mockCompany.id,
-      });
-      expect(mockAnalyticsQueryBuilder.distinctOn).toHaveBeenCalledWith(['user.id']);
-      expect(mockAnalyticsQueryBuilder.orderBy).toHaveBeenCalledWith('user.id', 'ASC');
-      expect(mockAnalyticsQueryBuilder.addOrderBy).toHaveBeenCalledWith('attempt.createdAt', 'DESC');
->>>>>>> dev
       expect(result).toEqual(mockResult);
     });
   });
