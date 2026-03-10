@@ -8,22 +8,12 @@ import { mockCompany } from '../src/mock/company-tests.mock';
 import { AnalyticsController } from '../src/quiz/analytics/analytics.controller';
 import { AnalyticsService } from '../src/quiz/analytics/analytics.service';
 import { mockAnalyticsService } from '../src/mock/analytics-tests.mock';
+import { mockJwtAuthGuard, mockCompanyRolesGuard } from '../src/mock/auth-tests.mock';
 
 describe('AnalyticsController (e2e)', () => {
   let app: INestApplication;
   let analyticsService: AnalyticsService;
-
-  const mockJwtAuthGuard = {
-    canActivate: (context: ExecutionContext) => {
-      const req = context.switchToHttp().getRequest();
-      req.user = mockUser;
-      return true;
-    },
-  };
-
-  const mockCompanyRolesGuard = {
-    canActivate: () => true,
-  };
+  const baseUrl = `/analytics`;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -56,7 +46,7 @@ describe('AnalyticsController (e2e)', () => {
   describe('GET /analytics/personal/rating', () => {
     it('should return user overall system rating', () => {
       return request(app.getHttpServer())
-        .get('/analytics/personal/rating')
+        .get(`${baseUrl}/personal/rating`)
         .expect(200)
         .expect((res) => {
           expect(res.body).toEqual({ rating: 80 });
@@ -70,7 +60,7 @@ describe('AnalyticsController (e2e)', () => {
   describe('GET /analytics/personal/average-score', () => {
     it('should return user average score', () => {
       return request(app.getHttpServer())
-        .get('/analytics/personal/average-score')
+        .get(`${baseUrl}/personal/average-score`)
         .expect(200)
         .expect((res) => {
           expect(res.body).toEqual({ averageScore: 75.5 });
@@ -82,7 +72,7 @@ describe('AnalyticsController (e2e)', () => {
   describe('GET /analytics/personal/scores-dynamics', () => {
     it('should return user scores time dynamics', () => {
       return request(app.getHttpServer())
-        .get('/analytics/personal/scores-dynamics')
+        .get(`${baseUrl}/personal/scores-dynamics`)
         .expect(200)
         .expect((res) => {
           expect(res.body).toBeInstanceOf(Array);
@@ -95,7 +85,7 @@ describe('AnalyticsController (e2e)', () => {
   describe('GET /analytics/personal/last-completions', () => {
     it('should return user last completions', () => {
       return request(app.getHttpServer())
-        .get('/analytics/personal/last-completions')
+        .get(`${baseUrl}/personal/last-completions`)
         .expect(200)
         .expect((res) => {
           expect(res.body).toBeInstanceOf(Array);
@@ -108,7 +98,7 @@ describe('AnalyticsController (e2e)', () => {
   describe('GET /analytics/company/:companyId/scores-dynamics', () => {
     it('should return company scores dynamics', () => {
       return request(app.getHttpServer())
-        .get(`/analytics/company/${mockCompany.id}/scores-dynamics`)
+        .get(`${baseUrl}/company/${mockCompany.id}/scores-dynamics`)
         .expect(200)
         .expect((res) => {
           expect(res.body).toBeInstanceOf(Array);
@@ -120,7 +110,7 @@ describe('AnalyticsController (e2e)', () => {
 
     it('should fail with 400 if company UUID is invalid', () => {
       return request(app.getHttpServer())
-        .get('/analytics/company/invalid-uuid/scores-dynamics')
+        .get(`${baseUrl}/company/invalid-uuid/scores-dynamics`)
         .expect(400);
     });
   });
@@ -129,7 +119,7 @@ describe('AnalyticsController (e2e)', () => {
     it('should return specific company user scores dynamics', () => {
       const targetUserId = 'e4567ed4-f5a5-4fba-8e1f-721ceab5d418';
       return request(app.getHttpServer())
-        .get(`/analytics/company/${mockCompany.id}/user/${targetUserId}/scores-dynamics`)
+        .get(`${baseUrl}/company/${mockCompany.id}/user/${targetUserId}/scores-dynamics`)
         .expect(200)
         .expect((res) => {
           expect(res.body).toBeInstanceOf(Array);
@@ -142,7 +132,7 @@ describe('AnalyticsController (e2e)', () => {
 
     it('should fail with 400 if target user UUID is invalid', () => {
       return request(app.getHttpServer())
-        .get(`/analytics/company/${mockCompany.id}/user/invalid-uuid/scores-dynamics`)
+        .get(`${baseUrl}/company/${mockCompany.id}/user/invalid-uuid/scores-dynamics`)
         .expect(400);
     });
   });
@@ -150,7 +140,7 @@ describe('AnalyticsController (e2e)', () => {
   describe('GET /analytics/company/:companyId/users-last-completions', () => {
     it('should return company users last completions', () => {
       return request(app.getHttpServer())
-        .get(`/analytics/company/${mockCompany.id}/users-last-completions`)
+        .get(`${baseUrl}/company/${mockCompany.id}/users-last-completions`)
         .expect(200)
         .expect((res) => {
           expect(res.body).toBeInstanceOf(Array);

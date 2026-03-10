@@ -7,18 +7,12 @@ import { JwtAuthGuard } from '../src/auth/guards/auth-jwt.guard';
 import { NotificationStatus } from '../src/utils/enums';
 import { mockUser } from '../src/mock/user-tests.mock';
 import { mockNotificationService } from '../src/mock/notification-tests.mock';
+import { mockJwtAuthGuard } from '../src/mock/auth-tests.mock';
 
 describe('NotificationController (e2e)', () => {
   let app: INestApplication;
   let notificationService: NotificationService;
-
-  const mockJwtAuthGuard = {
-    canActivate: (context: ExecutionContext) => {
-      const req = context.switchToHttp().getRequest();
-      req.user = mockUser;
-      return true;
-    },
-  };
+  const baseUrl = `/notification`;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -49,7 +43,7 @@ describe('NotificationController (e2e)', () => {
   describe('GET /notification/list', () => {
     it('should return paginated notifications', () => {
       return request(app.getHttpServer())
-        .get('/notification/list')
+        .get(`${baseUrl}/list`)
         .query({ skip: 0, take: 10 })
         .expect(200)
         .expect((res) => {
@@ -66,7 +60,7 @@ describe('NotificationController (e2e)', () => {
   describe('GET /notification/count', () => {
     it('should return notification count for a specific status', () => {
       return request(app.getHttpServer())
-        .get('/notification/count')
+        .get(`${baseUrl}/count`)
         .query({ status: NotificationStatus.READ })
         .expect(200)
         .expect((res) => {
@@ -80,7 +74,7 @@ describe('NotificationController (e2e)', () => {
 
     it('should default to UNREAD if status query is missing', () => {
       return request(app.getHttpServer())
-        .get('/notification/count')
+        .get(`${baseUrl}/count`)
         .expect(200)
         .expect((res) => {
           expect(res.body).toEqual({ count: 5, status: NotificationStatus.UNREAD });
@@ -89,7 +83,7 @@ describe('NotificationController (e2e)', () => {
 
     it('should fail with 400 if status query is an invalid enum', () => {
       return request(app.getHttpServer())
-        .get('/notification/count')
+        .get(`${baseUrl}/count`)
         .query({ status: 'invalid_status' })
         .expect(400);
     });
@@ -118,7 +112,7 @@ describe('NotificationController (e2e)', () => {
 
     it('should fail with 400 if status param is an invalid enum', () => {
       return request(app.getHttpServer())
-        .patch('/notification/status/super_read')
+        .patch(`${baseUrl}/status/super_read`)
         .send({ notificationIds: validUuids })
         .expect(400);
     });

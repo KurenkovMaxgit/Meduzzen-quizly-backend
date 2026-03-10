@@ -5,7 +5,7 @@ import { User } from '../common/entities/user.entity';
 import { Repository, DeleteResult, Brackets } from 'typeorm';
 import { Logger, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { mockQueryBuilder, mockUser, mockUserRepository } from '../mock/user-tests.mock';
+import { mockUserQueryBuilder, mockUser, mockUserRepository } from '../mock/user-tests.mock';
 
 jest.mock('bcrypt', () => ({
   hash: jest.fn().mockResolvedValue('hashed_secret'),
@@ -93,24 +93,24 @@ describe('UserService', () => {
 
       expect(repository.createQueryBuilder).toHaveBeenCalledWith('user');
 
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
+      expect(mockUserQueryBuilder.andWhere).toHaveBeenCalledWith(
         expect.stringContaining('user.role = :user_role'),
         expect.anything(),
       );
 
-      expect(mockQueryBuilder.take).toHaveBeenCalledWith(10);
-      expect(mockQueryBuilder.skip).toHaveBeenCalledWith(0);
-      expect(mockQueryBuilder.addOrderBy).toHaveBeenCalledWith('user.createdAt', 'DESC');
+      expect(mockUserQueryBuilder.take).toHaveBeenCalledWith(10);
+      expect(mockUserQueryBuilder.skip).toHaveBeenCalledWith(0);
+      expect(mockUserQueryBuilder.addOrderBy).toHaveBeenCalledWith('user.createdAt', 'DESC');
       expect(result).toEqual({ items: [mockUser], totalCount: 1 });
     });
 
     it('should handle empty query parameters', async () => {
       await service.findAll({});
 
-      expect(mockQueryBuilder.take).not.toHaveBeenCalled();
-      expect(mockQueryBuilder.skip).not.toHaveBeenCalled();
+      expect(mockUserQueryBuilder.take).not.toHaveBeenCalled();
+      expect(mockUserQueryBuilder.skip).not.toHaveBeenCalled();
 
-      expect(mockQueryBuilder.getManyAndCount).toHaveBeenCalled();
+      expect(mockUserQueryBuilder.getManyAndCount).toHaveBeenCalled();
     });
   });
 
