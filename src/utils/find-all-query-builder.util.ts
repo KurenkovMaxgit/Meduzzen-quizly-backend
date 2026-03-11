@@ -49,13 +49,15 @@ export function applyQueryFilters<T>(
       if (typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
         const relationAlias = key;
 
+        const relationValue = value as Record<string, unknown>;
+
         const isJoined = qb.expressionMap.aliases.some((a) => a.name === relationAlias);
         if (!isJoined) {
           qb.leftJoin(`${alias}.${key}`, relationAlias);
         }
 
-        Object.keys(value).forEach((subKey) => {
-          const subValue = value[subKey];
+        Object.keys(relationValue).forEach((subKey) => {
+          const subValue = relationValue[subKey];
           if (subValue !== undefined) {
             const paramName = `${relationAlias}_${subKey}_${Math.random().toString(36).substring(7)}`;
             qb.andWhere(`${relationAlias}.${subKey} = :${paramName}`, { [paramName]: subValue });

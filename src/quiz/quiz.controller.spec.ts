@@ -88,4 +88,19 @@ describe('QuizController', () => {
       expect(result).toEqual({ affected: 1 });
     });
   });
+
+  describe('importQuizzes', () => {
+    it('should pass the file buffer and companyId to the service', async () => {
+      const mockFile = {
+        buffer: Buffer.from('fake-excel-data'),
+        originalname: 'quizzes.xlsx',
+        mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      } as Express.Multer.File;
+
+      const result = await controller.importQuizzes(mockFile, mockCompany.id);
+
+      expect(service.parseExcel).toHaveBeenCalledWith(mockFile.buffer, mockCompany.id);
+      expect(result).toEqual({ message: 'Import completed and validated successfully' });
+    });
+  });
 });

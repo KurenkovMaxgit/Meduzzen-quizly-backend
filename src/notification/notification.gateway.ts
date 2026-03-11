@@ -28,20 +28,20 @@ export class NotificationGateway implements OnGatewayConnection, OnGatewayDiscon
           client.handshake.auth?.token || client.handshake.headers['authorization']?.split(' ')[1];
         if (!token) throw new Error('No token provided');
 
-        const userId = await this.authService.verifyWebsocketToken(token);
+        const userId = await this.authService.verifyWebsocketToken(String(token));
 
         client.data.userId = userId;
 
         next();
-      } catch (error) {
+      } catch (_error) {
         next(new Error('Unauthorized'));
       }
     });
   }
 
-  handleConnection(client: Socket) {
+  async handleConnection(client: Socket) {
     const userId = client.data.userId;
-    client.join(`user_${userId}`);
+    await client.join(`user_${userId}`);
     this.logger.log(`Authenticated client connected: ${client.id} (User: ${userId})`);
   }
 

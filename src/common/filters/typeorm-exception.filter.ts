@@ -22,7 +22,6 @@ export class TypeOrmExceptionFilter implements ExceptionFilter {
       status = HttpStatus.NOT_FOUND;
       message = 'Resource not found';
     } else if (exception instanceof QueryFailedError) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const { code } = exception.driverError;
       const payload = errorMap[code as number];
       if (payload) {

@@ -45,7 +45,7 @@ export class AnalyticsService {
     }
 
     const result = await qb.getRawOne();
-    return parseFloat(result?.averageScore) || 0;
+    return parseFloat(result?.averageScore as string) || 0;
   }
 
   async getUserScoresWithTimeDynamics(userId: string, companyId?: string) {

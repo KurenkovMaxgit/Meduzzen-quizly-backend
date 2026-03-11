@@ -9,6 +9,6 @@ export class QuizLastCompletionDto {
   quizTitle!: string;
 
   @Expose()
-  @Transform(({ value }) => new Date(value))
+  @Transform(({ value }) => new Date(value as string | number))
   lastCompletionTime!: Date;
 }

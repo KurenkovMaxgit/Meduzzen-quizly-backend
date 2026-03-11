@@ -10,4 +10,4 @@ COPY package*.json ./
 RUN npm ci --omit=dev 
 COPY --from=builder /app/dist ./dist
 EXPOSE 8080
-CMD [ "npm", "run", "start:prod" ]
+CMD [ "node", "dist/src/main"]

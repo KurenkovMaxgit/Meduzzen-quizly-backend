@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsOptional, IsUUID, Length, IsString, IsEnum, IsDate, IsInt } from 'class-validator';
+import { IsOptional, IsUUID, Length, IsString, IsDate, IsInt } from 'class-validator';
 import { FindUserDto } from '../../../user/dto/find-user.dto';
 import { FindCompanyDto } from '../../../company/dto/find-company.dto';
 import { FilterDto } from '../../../common/dto/find-all-query.dto';

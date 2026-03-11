@@ -79,7 +79,7 @@ export function FilterDto<T>(classRef: Type<T>): Type<FindAllQuery<T>> {
         const parsed = typeof value === 'string' ? JSON.parse(value) : value;
         const instance = plainToInstance(classRef, parsed);
         return cleanUndefined(instance);
-      } catch (error) {
+      } catch (_error) {
         return value;
       }
     })

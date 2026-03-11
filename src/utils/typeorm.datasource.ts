@@ -55,4 +55,9 @@ export const AppDataSource = new DataSource({
   synchronize: isNotProd,
   logging: isNotProd ? ['query', 'info', 'error'] : ['error'],
   logger: new CustomTypeOrmLogger(),
+  ssl: isNotProd
+    ? false
+    : {
+        rejectUnauthorized: false,
+      },
 });

@@ -49,4 +49,7 @@ export const mockQuizService = {
   findOneBy: jest.fn().mockResolvedValue(mockQuiz),
   updateBy: jest.fn().mockResolvedValue({ ...mockQuiz, title: 'Updated' }),
   deleteBy: jest.fn().mockResolvedValue({ affected: 1 }),
+  parseExcel: jest
+    .fn()
+    .mockResolvedValue({ message: 'Import completed and validated successfully' }),
 };
