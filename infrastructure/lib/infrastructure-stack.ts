@@ -11,6 +11,19 @@ export class QuizlyInfrastructureStack extends cdk.Stack {
 
     const vpc = new ec2.Vpc(this, "QuizlyVpc", {
       maxAzs: 2,
+      natGateways: 0,
+      subnetConfiguration: [
+        {
+          cidrMask: 24,
+          name: 'Public',
+          subnetType: ec2.SubnetType.PUBLIC, 
+        },
+        {
+          cidrMask: 24,
+          name: 'Isolated',
+          subnetType: ec2.SubnetType.PRIVATE_ISOLATED, 
+        }
+      ]
     });
 
     const dbInstance = new rds.DatabaseInstance(this, "QuizlyPostgres", {
@@ -18,6 +31,7 @@ export class QuizlyInfrastructureStack extends cdk.Stack {
         version: rds.PostgresEngineVersion.VER_18,
       }),
       vpc,
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
       instanceType: ec2.InstanceType.of(
         ec2.InstanceClass.BURSTABLE3,
         ec2.InstanceSize.MICRO,
@@ -31,7 +45,7 @@ export class QuizlyInfrastructureStack extends cdk.Stack {
       "RedisSubnetGroup",
       {
         description: "Subnets for Redis",
-        subnetIds: vpc.privateSubnets.map((s) => s.subnetId),
+        subnetIds: vpc.isolatedSubnets.map((s) => s.subnetId),
       },
     );
 
@@ -53,10 +67,6 @@ export class QuizlyInfrastructureStack extends cdk.Stack {
       value: redisCluster.attrRedisEndpointAddress,
     });
 
-    dbInstance.connections.allowDefaultPortFromAnyIpv4(
-      "Warning: Only for initial testing",
-    );
-
     const cluster = new cdk.aws_ecs.Cluster(this, "QuizlyCluster", { vpc });
 
     const loadBalancedFargateService =
@@ -67,6 +77,8 @@ export class QuizlyInfrastructureStack extends cdk.Stack {
           cluster,
           memoryLimitMiB: 512,
           cpu: 256,
+          taskSubnets: { subnetType: ec2.SubnetType.PUBLIC }, 
+          assignPublicIp: true, 
           taskImageOptions: {
             image: cdk.aws_ecs.ContainerImage.fromRegistry(
               "011337674247.dkr.ecr.eu-north-1.amazonaws.com/quizly-backend:latest",
@@ -101,6 +113,7 @@ export class QuizlyInfrastructureStack extends cdk.Stack {
           publicLoadBalancer: true,
         },
       );
+
     loadBalancedFargateService.taskDefinition.addToExecutionRolePolicy(
       new iam.PolicyStatement({
         actions: [
@@ -111,6 +124,11 @@ export class QuizlyInfrastructureStack extends cdk.Stack {
         ],
         resources: ["*"],
       }),
+    );
+
+    dbInstance.connections.allowDefaultPortFrom(
+      loadBalancedFargateService.service,
+      "Allow ECS to connect to Postgres"
     );
 
     redisSG.addIngressRule(
