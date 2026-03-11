@@ -142,7 +142,7 @@ export class AttemptService {
       const correctAnswers = question.answers.filter(
         (a: { correctness: AnswerCorrectness }) => a.correctness === AnswerCorrectness.CORRECT,
       );
-      const correctAnswerIds = correctAnswers.map((a: { id: any }) => a.id);
+      const correctAnswerIds = correctAnswers.map((a: { id: string }) => a.id);
       const userSubmittedIds = userSubmittedAnswers[question.id] || [];
 
       if (question.type === 'single_choice' && userSubmittedIds.length > 1) {
