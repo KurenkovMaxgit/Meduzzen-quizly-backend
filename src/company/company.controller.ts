@@ -27,6 +27,8 @@ import { FindOneQueryDto } from '../common/dto/find-one-query.dto';
 import { ParseUUIDArrayPipe } from '../common/pipes/parse-uuid-array.pipe';
 import { CompanyRole } from '../utils/enums';
 import { plainToInstance } from 'class-transformer';
+import { FindAllMembersDto } from './dto/find-company-members.dto';
+import { CompanyUser } from '../common/entities/company-user.entity';
 
 @ApiTags('Companies')
 @ApiBearerAuth()
@@ -53,6 +55,21 @@ export class CompanyController {
     const { items, totalCount } = await this.companyService.findAll(query);
     return {
       items: plainToInstance(ReturnCompanyDto, items),
+      totalCount,
+    };
+  }
+
+  @ApiOperation({ summary: 'Get all members of company by query parameters' })
+  @ApiResponse({ status: 200, description: 'Success.' })
+  @ApiResponse({ status: 400, description: 'Bad request.' })
+  @Get(':companyId/members/list')
+  async findAllMembers(
+    @Param('companyId', ParseUUIDPipe) id: string,
+    @Query() query: FindAllMembersDto,
+  ) {
+    const { items, totalCount } = await this.companyService.findAllMembers(id, query);
+    return {
+      items: plainToInstance(CompanyUser, items),
       totalCount,
     };
   }

@@ -9,8 +9,10 @@ import { UpdateCompanyDto } from './dto/update-company.dto';
 import { Company } from '../common/entities/company.entity';
 import { PaginatedData } from '../utils/response.interface';
 import { applyQueryFilters } from '../utils/find-all-query-builder.util';
+import { FindAllMembersDto, FindCompanyMembersDto } from './dto/find-company-members.dto';
 
 const ALLOWED_COMPANY_RELATIONS = ['members', 'members.user'];
+const ALLOWED_MEMBERS_RELATIONS = ['user'];
 
 @Injectable()
 export class CompanyService {
@@ -48,6 +50,24 @@ export class CompanyService {
     applyQueryFilters<FindCompanyDto>(qb, query, {
       searchableFields: ['name', 'description'],
       allowedRelations: ALLOWED_COMPANY_RELATIONS,
+    });
+
+    const [items, totalCount] = await qb.getManyAndCount();
+
+    return { items, totalCount };
+  }
+
+  async findAllMembers(
+    companyId: string,
+    query: FindAllMembersDto,
+  ): Promise<PaginatedData<CompanyUser>> {
+    const qb = this.companyUserRepository.createQueryBuilder('company_user');
+
+    qb.andWhere('company_user.companyId = :companyId', { companyId });
+
+    applyQueryFilters<FindCompanyMembersDto>(qb, query, {
+      searchableFields: ['user.firstName', 'user.lastName', 'user.email'],
+      allowedRelations: ALLOWED_MEMBERS_RELATIONS,
     });
 
     const [items, totalCount] = await qb.getManyAndCount();

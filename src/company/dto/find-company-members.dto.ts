@@ -1,7 +1,9 @@
-import { IsOptional, IsEnum } from 'class-validator';
+import { IsOptional, IsEnum, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import { FindUserDto } from '../../user/dto/find-user.dto';
 import { CompanyRole } from '../../utils/enums';
 import { FindCompanyDto } from './find-company.dto';
+import { FilterDto } from '../../common/dto/find-all-query.dto';
 
 export class FindCompanyMembersDto {
   @IsOptional()
@@ -9,8 +11,13 @@ export class FindCompanyMembersDto {
   role?: CompanyRole;
 
   @IsOptional()
+  @ValidateNested()
+  @Type(() => FindUserDto)
   user?: FindUserDto;
 
-  @IsOptional()
+  @ValidateNested()
+  @Type(() => FindCompanyDto)
   company?: FindCompanyDto;
 }
+
+export class FindAllMembersDto extends FilterDto(FindCompanyMembersDto) {}

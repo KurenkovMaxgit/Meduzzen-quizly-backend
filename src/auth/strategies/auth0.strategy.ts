@@ -6,6 +6,8 @@ import { AppConfiguration } from '../../config/configuration';
 import { passportJwtSecret } from 'jwks-rsa';
 import { AuthService } from '../auth.service';
 import { User } from '../../common/entities/user.entity';
+import { ACCESS_TOKEN_KEY } from '../constants/cookie.constants';
+import { Request } from 'express';
 
 @Injectable()
 export class Auth0Strategy extends PassportStrategy(Strategy, 'auth0') {
@@ -21,7 +23,12 @@ export class Auth0Strategy extends PassportStrategy(Strategy, 'auth0') {
         jwksRequestsPerMinute: 5,
         jwksUri: `${auth0Config.issuerUrl!}.well-known/jwks.json`,
       }),
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+        (request: Request) => {
+          return request?.cookies?.[ACCESS_TOKEN_KEY] || null;
+        },
+      ]),
       ignoreExpiration: false,
       audience: auth0Config.audience,
       issuer: auth0Config.issuerUrl,

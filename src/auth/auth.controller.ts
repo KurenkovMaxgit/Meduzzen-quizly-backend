@@ -17,7 +17,12 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { Request, Response } from 'express';
 import { JwtAuthGuard } from './guards/auth-jwt.guard';
 import { ConfigService } from '@nestjs/config';
-import { REFRESH_TOKEN_KEY, BASE_COOKIE_OPTIONS } from './constants/cookie.constants';
+import {
+  ACCESS_TOKEN_KEY,
+  ACCESS_TOKEN_OPTIONS,
+  REFRESH_TOKEN_KEY,
+  REFRESH_TOKEN_OPTIONS,
+} from './constants/cookie.constants';
 import { AppConfiguration } from '../config/configuration';
 
 @Controller('auth')
@@ -42,11 +47,8 @@ export class AuthController {
   @Post('signup')
   async signup(@Body() data: CreateUserDto, @Res({ passthrough: true }) res: Response) {
     const { user, tokens } = await this.authService.register(data);
-    this.setCookie(res, tokens.refreshToken);
-    return {
-      user: new ReturnUserDto(user),
-      accessToken: tokens.accessToken,
-    };
+    this.setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
+    return { user: new ReturnUserDto(user) };
   }
 
   @ApiOperation({ summary: 'Login user' })
@@ -57,20 +59,21 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const { user, tokens } = await this.authService.validateUserPassword(data.email, data.password);
-    this.setCookie(res, tokens.refreshToken);
-    return { user: new ReturnUserDto(user), accessToken: tokens.accessToken };
+    this.setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
+    return { user: new ReturnUserDto(user) };
   }
 
   @ApiOperation({ summary: 'Refresh access token' })
   @Post('refresh')
-  async refresh(@Req() req: Request) {
+  async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const refreshToken = req.cookies[REFRESH_TOKEN_KEY] as string;
 
     if (!refreshToken) {
       throw new UnauthorizedException('No refresh token found');
     }
-
-    return await this.authService.refreshLocalToken(refreshToken);
+    const newTokens = await this.authService.refreshLocalToken(refreshToken);
+    this.setAuthCookies(res, newTokens.accessToken, newTokens.refreshToken);
+    return newTokens;
   }
 
   @ApiOperation({ summary: 'Logout user' })
@@ -78,17 +81,28 @@ export class AuthController {
   @Post('logout')
   async logout(@CurrentUser('id') id: string, @Res({ passthrough: true }) res: Response) {
     await this.authService.logout(id);
-    res.clearCookie(REFRESH_TOKEN_KEY, { ...BASE_COOKIE_OPTIONS, secure: this.isProduction });
+
+    res.clearCookie(ACCESS_TOKEN_KEY, { ...ACCESS_TOKEN_OPTIONS, secure: this.isProduction });
+    res.clearCookie(REFRESH_TOKEN_KEY, { ...REFRESH_TOKEN_OPTIONS, secure: this.isProduction });
     return { message: 'Logged out successfully' };
   }
 
   /**
    * Centralized place to manage cookie security policies.
    */
-  private setCookie(res: Response, token: string) {
-    res.cookie(REFRESH_TOKEN_KEY, token, {
-      ...BASE_COOKIE_OPTIONS,
-      secure: this.isProduction,
-    });
+  private setAuthCookies(res: Response, accessToken?: string, refreshToken?: string) {
+    if (accessToken) {
+      res.cookie(ACCESS_TOKEN_KEY, accessToken, {
+        ...ACCESS_TOKEN_OPTIONS,
+        secure: this.isProduction,
+      });
+    }
+
+    if (refreshToken) {
+      res.cookie(REFRESH_TOKEN_KEY, refreshToken, {
+        ...REFRESH_TOKEN_OPTIONS,
+        secure: this.isProduction,
+      });
+    }
   }
 }

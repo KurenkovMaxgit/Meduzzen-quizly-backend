@@ -13,6 +13,10 @@ export function applyQueryFilters<T>(
 ) {
   const { searchableFields = [], allowedRelations: validRelations = [] } = config;
   const alias = qb.alias;
+
+  const unwrapValue = (val: any) =>
+    typeof val === 'object' && val !== null && 'id' in val ? val.id : val;
+
   if (query.relations) {
     const relations = Array.isArray(query.relations) ? query.relations : [query.relations];
 
@@ -46,9 +50,8 @@ export function applyQueryFilters<T>(
       const value = (query.where as any)[key];
       if (value === undefined || value === null) return;
 
-      if (typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
+      if (typeof value === 'object' && !(value instanceof Date) && !('id' in value)) {
         const relationAlias = key;
-
         const relationValue = value as Record<string, unknown>;
 
         const isJoined = qb.expressionMap.aliases.some((a) => a.name === relationAlias);
@@ -57,15 +60,19 @@ export function applyQueryFilters<T>(
         }
 
         Object.keys(relationValue).forEach((subKey) => {
-          const subValue = relationValue[subKey];
-          if (subValue !== undefined) {
+          const rawSubValue = relationValue[subKey];
+          if (rawSubValue !== undefined) {
+            const safeValue = unwrapValue(rawSubValue);
             const paramName = `${relationAlias}_${subKey}_${Math.random().toString(36).substring(7)}`;
-            qb.andWhere(`${relationAlias}.${subKey} = :${paramName}`, { [paramName]: subValue });
+
+            qb.andWhere(`${relationAlias}.${subKey} = :${paramName}`, { [paramName]: safeValue });
           }
         });
       } else {
-        const paramName = `${alias}_${key}`;
-        qb.andWhere(`${alias}.${key} = :${paramName}`, { [paramName]: value });
+        const safeValue = unwrapValue(value);
+        const paramName = `${alias}_${key}_${Math.random().toString(36).substring(7)}`;
+
+        qb.andWhere(`${alias}.${key} = :${paramName}`, { [paramName]: safeValue });
       }
     });
   }
@@ -74,7 +81,18 @@ export function applyQueryFilters<T>(
     qb.andWhere(
       new Brackets((subQb) => {
         searchableFields.forEach((field) => {
-          subQb.orWhere(`${alias}.${field} ILIKE :search`, { search: `%${query.search}%` });
+          if (field.includes('.')) {
+            const [relation] = field.split('.');
+
+            const isJoined = qb.expressionMap.aliases.some((a) => a.name === relation);
+            if (!isJoined) {
+              qb.leftJoin(`${alias}.${relation}`, relation);
+            }
+
+            subQb.orWhere(`${field} ILIKE :search`, { search: `%${query.search}%` });
+          } else {
+            subQb.orWhere(`${alias}.${field} ILIKE :search`, { search: `%${query.search}%` });
+          }
         });
       }),
     );
@@ -82,7 +100,20 @@ export function applyQueryFilters<T>(
 
   if (query.order) {
     Object.keys(query.order).forEach((key) => {
-      qb.addOrderBy(`${alias}.${key}`, (query.order as any)[key] as 'ASC' | 'DESC');
+      const orderDirection = (query.order as any)[key] as 'ASC' | 'DESC';
+
+      if (key.includes('.')) {
+        const [relation] = key.split('.');
+
+        const isJoined = qb.expressionMap.aliases.some((a) => a.name === relation);
+        if (!isJoined) {
+          qb.leftJoin(`${alias}.${relation}`, relation);
+        }
+
+        qb.addOrderBy(key, orderDirection);
+      } else {
+        qb.addOrderBy(`${alias}.${key}`, orderDirection);
+      }
     });
   }
 

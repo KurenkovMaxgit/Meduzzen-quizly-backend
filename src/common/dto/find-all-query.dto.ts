@@ -73,16 +73,6 @@ export function FilterDto<T>(classRef: Type<T>): Type<FindAllQuery<T>> {
 
       return cleanUndefined(instance);
     })
-    @IsOptional()
-    @Transform(({ value }) => {
-      try {
-        const parsed = typeof value === 'string' ? JSON.parse(value) : value;
-        const instance = plainToInstance(classRef, parsed);
-        return cleanUndefined(instance);
-      } catch (_error) {
-        return value;
-      }
-    })
     @IsObject()
     @ValidateNested()
     where?: T;
