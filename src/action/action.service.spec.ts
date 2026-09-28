@@ -39,7 +39,7 @@ describe('ActionService', () => {
         },
         {
           provide: NotificationService,
-          useValue: { createForUsers: jest.fn() },
+          useValue: { createForUsers: jest.fn().mockResolvedValue(undefined) },
         },
       ],
     }).compile();

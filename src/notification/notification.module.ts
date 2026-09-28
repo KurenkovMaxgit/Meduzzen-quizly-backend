@@ -13,5 +13,6 @@ import { ScheduleModule } from '@nestjs/schedule';
   imports: [TypeOrmModule.forFeature([Notification]), CompanyModule, AuthModule, ScheduleModule],
   providers: [NotificationService, Logger, NotificationGateway, NotificationScheduleService],
   controllers: [NotificationController],
+  exports: [NotificationService],
 })
 export class NotificationModule {}

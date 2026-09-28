@@ -12,9 +12,10 @@ import { applyQueryFilters } from '../utils/find-all-query-builder.util';
 import { PaginatedData } from '../utils/response.interface';
 import { CreateActionDto } from './dto/create-action.dto';
 import { FindAllActionsDto, FindActionDto } from './dto/find-action.dto';
-import { ActionDecision, ActionStatus, ActionType } from '../utils/enums';
+import { ActionDecision, ActionStatus, ActionType, CompanyRole } from '../utils/enums';
 import { CompanyService } from '../company/company.service';
 import { User } from '../common/entities/user.entity';
+import { NotificationService } from '../notification/notification.service';
 
 const ALLOWED_ACTION_RELATIONS = ['createdBy', 'subject', 'company'];
 
@@ -26,6 +27,7 @@ export class ActionService {
     private readonly companyService: CompanyService,
     private readonly dataSource: DataSource,
     private readonly logger: Logger,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async create(createdBy: string, companyId: string, data: CreateActionDto): Promise<Action> {
@@ -42,12 +44,32 @@ export class ActionService {
       throw new BadRequestException('User is already a member or has a pending company action.');
     }
 
-    return this.actionsRepository.save({
+    const action = await this.actionsRepository.save({
       createdBy: { id: createdBy },
       subject: { id: data.subject },
       company: { id: companyId },
       type: data.type,
     });
+
+    const isInvite = data.type === ActionType.INVITE;
+    let recipients = [data.subject];
+    let audience = 'invitee';
+    let message = 'You have received a company invitation.';
+
+    if (!isInvite) {
+      recipients = await this.getCompanyAdminIds(companyId);
+      audience = 'company_admin';
+      message = 'A user has requested to join your company.';
+    }
+
+    await this.notifyActionUsers(recipients, createdBy, companyId, message, {
+      actionId: action.id,
+      actionType: data.type,
+      audience,
+      actionStatus: ActionStatus.PENDING,
+    });
+
+    return action;
   }
 
   async findAll(
@@ -102,7 +124,7 @@ export class ActionService {
   async manageInvite(id: string, currentUserId: string, decision: ActionDecision) {
     const action = await this.actionsRepository.findOne({
       where: { id },
-      relations: ['subject', 'company'],
+      relations: ['subject', 'company', 'createdBy'],
     });
 
     if (!action) throw new NotFoundException(`Action not found`);
@@ -119,7 +141,24 @@ export class ActionService {
       throw new BadRequestException(`Invitation is already ${action.status}`);
     }
 
-    return this.applyDecision(action, decision);
+    const updatedAction = await this.applyDecision(action, decision);
+    const outcome = decision === ActionDecision.ACCEPT ? 'accepted' : 'declined';
+    if (action.createdBy?.id) {
+      await this.notifyActionUsers(
+        [action.createdBy.id],
+        currentUserId,
+        action.company.id,
+        `Your company invitation was ${outcome}.`,
+        {
+          actionId: action.id,
+          actionType: ActionType.INVITE,
+          audience: 'inviter',
+          actionStatus: outcome,
+        },
+      );
+    }
+
+    return updatedAction;
   }
 
   async manageRequest(id: string, currentUserId: string, decision: ActionDecision) {
@@ -145,7 +184,22 @@ export class ActionService {
       throw new BadRequestException(`Request is already ${action.status}`);
     }
 
-    return this.applyDecision(action, decision);
+    const updatedAction = await this.applyDecision(action, decision);
+    const outcome = decision === ActionDecision.ACCEPT ? 'accepted' : 'declined';
+    await this.notifyActionUsers(
+      [action.subject.id],
+      currentUserId,
+      action.company.id,
+      `Your company membership request was ${outcome}.`,
+      {
+        actionId: action.id,
+        actionType: ActionType.REQUEST,
+        audience: 'requester',
+        actionStatus: outcome,
+      },
+    );
+
+    return updatedAction;
   }
 
   private async applyDecision(action: Action, decision: ActionDecision) {
@@ -162,10 +216,56 @@ export class ActionService {
     });
   }
 
+  private async notifyActionUsers(
+    recipientIds: string[],
+    actorId: string,
+    companyId: string,
+    message: string,
+    metadata: Record<string, string>,
+  ) {
+    const userIds = [...new Set(recipientIds)].filter((userId) => userId && userId !== actorId);
+    if (userIds.length === 0) return;
+
+    try {
+      await this.notificationService.createForUsers({
+        userIds,
+        companyId,
+        message,
+        metadata,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Company action completed, but its notification could not be created: ${String(error)}`,
+      );
+    }
+  }
+
+  private async getCompanyAdminIds(companyId: string) {
+    try {
+      const company = await this.companyService.findOneBy(
+        { id: companyId },
+        { relations: ['members', 'members.user'] },
+      );
+
+      return (
+        company?.members
+          ?.filter(
+            (member) => member.role === CompanyRole.OWNER || member.role === CompanyRole.ADMIN,
+          )
+          .map((member) => member.user.id) ?? []
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Could not find company admins for an action notification: ${String(error)}`,
+      );
+      return [];
+    }
+  }
+
   async cancelAction(id: string, currentUserId: string) {
     const action = await this.actionsRepository.findOne({
       where: { id },
-      relations: ['company', 'createdBy'],
+      relations: ['company', 'createdBy', 'subject'],
     });
 
     if (!action) throw new NotFoundException(`Action not found`);
@@ -189,6 +289,37 @@ export class ActionService {
       throw new ForbiddenException('You do not have permission to cancel this action');
     }
 
-    return this.actionsRepository.softRemove(action);
+    const removedAction = await this.actionsRepository.softRemove(action);
+
+    if (action.type === ActionType.INVITE) {
+      await this.notifyActionUsers(
+        [action.subject.id],
+        currentUserId,
+        action.company.id,
+        'A company invitation was withdrawn.',
+        {
+          actionId: action.id,
+          actionType: ActionType.INVITE,
+          audience: 'invitee',
+          actionStatus: 'cancelled',
+        },
+      );
+    } else {
+      const adminIds = await this.getCompanyAdminIds(action.company.id);
+      await this.notifyActionUsers(
+        adminIds,
+        currentUserId,
+        action.company.id,
+        'A user withdrew a company membership request.',
+        {
+          actionId: action.id,
+          actionType: ActionType.REQUEST,
+          audience: 'company_admin',
+          actionStatus: 'cancelled',
+        },
+      );
+    }
+
+    return removedAction;
   }
 }

@@ -53,6 +53,28 @@ export class NotificationService {
     });
   }
 
+  async createForUsers(payload: {
+    userIds: string[];
+    companyId: string;
+    message: string;
+    metadata: Record<string, string>;
+  }) {
+    const userIds = [...new Set(payload.userIds)].filter(Boolean);
+    if (userIds.length === 0) return;
+
+    const notifications = userIds.map((userId) => ({
+      user: { id: userId },
+      company: { id: payload.companyId },
+      type: NotificationType.COMPANY_ACTION,
+      text: payload.message,
+      metadata: payload.metadata,
+      status: NotificationStatus.UNREAD,
+    }));
+
+    const savedNotifications = await this.notificationsRepository.save(notifications);
+    this.eventEmitter.emit('ws.send_notification', { notifications: savedNotifications });
+  }
+
   async findAll(
     userId: string,
     query: FindAllNotificationsDto,
@@ -110,8 +132,8 @@ export class NotificationService {
       .leftJoin(
         'notification',
         'existing_notification',
-        `existing_notification.userId = user.id AND 
-       existing_notification.type = :notificationType AND 
+        `existing_notification.userId = user.id AND
+       existing_notification.type = :notificationType AND
        existing_notification.status = :notificationStatus AND
        existing_notification.metadata->>'quizId' = CAST(quiz.id AS VARCHAR)`,
         {
@@ -120,7 +142,7 @@ export class NotificationService {
         },
       )
       .where(
-        `(last_attempt."lastAttemptDate" IS NULL OR 
+        `(last_attempt."lastAttemptDate" IS NULL OR
         last_attempt."lastAttemptDate" < NOW() - (quiz."completionFrequency" * INTERVAL '1 day'))`,
       )
       .andWhere('existing_notification.id IS NULL')
