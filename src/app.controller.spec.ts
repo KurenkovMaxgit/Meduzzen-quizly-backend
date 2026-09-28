@@ -15,8 +15,8 @@ describe('AppController', () => {
   });
 
   describe('root', () => {
-    it('should return {"detail": "ok", "result": "working", "status_code": 200}', () => {
-      expect(appController.healthCheck()).toStrictEqual({"detail": "ok", "result": "working", "status_code": 200});
+    it("should return { detail: 'ok', result: 'working', }", () => {
+      expect(appController.healthCheck()).toStrictEqual({ detail: 'ok', result: 'working' });
     });
   });
 });

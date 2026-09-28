@@ -1,6 +1,8 @@
 #!/usr/bin/env sh
 . "$(dirname "$0")/h"
 
+set -e
+
 echo "pre-push: running repo checks (format, lint, types, tests)..."
 
 echo "Checking formatting..."

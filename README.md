@@ -26,11 +26,21 @@ Configure environment variables and edit with your configuration
 cp .env.example .env
 ```
 
+Run database containers
+
+```bash
+npm run db:dev:up
+```
+
 Start development server
 
 ```bash
-npm run dev
+npm run start:dev
 ```
+
+## API Docs
+
+[http://localhost:8080/api-docs](http://localhost:8080/api-docs)
 
 ## Testing
 
@@ -42,14 +52,44 @@ npm run test
 
 ## Testing within Docker
 
-Ensure the application stack is running
+Run script
 
 ```bash
-docker-compose -f docker-compose.dev.yml up -d
+npm run test:docker
 ```
 
-Execute the test suite inside the app container
+## E2E Testing
+
+Run script
 
 ```bash
-docker-compose -f docker-compose.dev.yml exec quizly-api-dev npm run test
+npm run test:e2e
+```
+
+## Migrations
+
+In development mode, schemas synchronize automatically upon running the application. However, for production environments, migrations are strictly required
+
+### Generating migration
+
+Use this command to create a new migration file based on your entity changes:
+
+```bash
+npm run migration:generate --name=<migration-name>
+```
+
+### Running migration
+
+Executes all pending migrations against the database:
+
+```bash
+npm run migration:run
+```
+
+### Reverting migration
+
+Rolls back the last executed migration:
+
+```bash
+npm run migration:revert
 ```
