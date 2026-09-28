@@ -140,19 +140,24 @@ describe('AuthService', () => {
       );
     });
 
-    it('should rotate tokens and return new access token', async () => {
+    it('should rotate and return the new access and refresh tokens', async () => {
       mockJwtService.decode.mockReturnValue({ user: { sub: mockUser.id } });
       mockUserService.findOneBy.mockResolvedValue(mockUser);
-      mockJwtService.signAsync.mockResolvedValue('new_access_token');
+      mockJwtService.signAsync
+        .mockResolvedValueOnce('new_access_token')
+        .mockResolvedValueOnce('new_refresh_token');
 
       const result = await service.refreshLocalToken('refresh_token');
 
-      expect(bcrypt.hash).toHaveBeenCalled();
+      expect(bcrypt.hash).toHaveBeenCalledWith('new_refresh_token', 10);
       expect(userService.updateBy).toHaveBeenCalledWith(
         { id: mockUser.id },
         expect.objectContaining({ refreshToken: 'hashed_token_string' }),
       );
-      expect(result).toEqual('new_access_token');
+      expect(result).toEqual({
+        accessToken: 'new_access_token',
+        refreshToken: 'new_refresh_token',
+      });
     });
   });
 
