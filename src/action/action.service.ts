@@ -250,13 +250,14 @@ export class ActionService {
       return (
         company?.members
           ?.filter(
-            (member) =>
-              member.role === CompanyRole.OWNER || member.role === CompanyRole.ADMIN,
+            (member) => member.role === CompanyRole.OWNER || member.role === CompanyRole.ADMIN,
           )
           .map((member) => member.user.id) ?? []
       );
     } catch (error) {
-      this.logger.warn(`Could not find company admins for an action notification: ${String(error)}`);
+      this.logger.warn(
+        `Could not find company admins for an action notification: ${String(error)}`,
+      );
       return [];
     }
   }
