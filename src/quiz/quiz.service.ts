@@ -99,13 +99,47 @@ export class QuizService {
   }
 
   async updateBy(where: FindQuizDto, data: UpdateQuizDto): Promise<Quiz> {
-    const existingQuiz = await this.quizzesRepository.findOne({ where });
+    const existingQuiz = await this.quizzesRepository.findOne({
+      where,
+      relations: ['questions', 'questions.answers'],
+    });
 
     if (!existingQuiz) {
       throw new NotFoundException(`Quiz with fields ${JSON.stringify({ ...where })} not found`);
     }
 
     this.validateQuestions(data.questions);
+
+    const existingQuestions = new Map(
+      (existingQuiz.questions ?? []).map((question) => [question.id, question]),
+    );
+    const seenQuestionIds = new Set<string>();
+    for (const question of data.questions) {
+      if (!question.id) {
+        if (question.answers.some((answer) => answer.id)) {
+          throw new BadRequestException('A new question cannot contain existing answer IDs.');
+        }
+        continue;
+      }
+
+      const existingQuestion = existingQuestions.get(question.id);
+      if (!existingQuestion || seenQuestionIds.has(question.id)) {
+        throw new BadRequestException('Question IDs must belong to this quiz and be unique.');
+      }
+      seenQuestionIds.add(question.id);
+
+      const existingAnswerIds = new Set(
+        (existingQuestion.answers ?? []).map((answer) => answer.id),
+      );
+      const seenAnswerIds = new Set<string>();
+      for (const answer of question.answers) {
+        if (!answer.id) continue;
+        if (!existingAnswerIds.has(answer.id) || seenAnswerIds.has(answer.id)) {
+          throw new BadRequestException('Answer IDs must belong to their question and be unique.');
+        }
+        seenAnswerIds.add(answer.id);
+      }
+    }
 
     const savedQuiz = await this.quizzesRepository.save({
       id: existingQuiz.id,
