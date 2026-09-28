@@ -4,7 +4,12 @@ import { AuthService } from './auth.service';
 import { ConfigService } from '@nestjs/config';
 import { UnauthorizedException } from '@nestjs/common';
 import { Response, Request } from 'express';
-import { REFRESH_TOKEN_KEY, BASE_COOKIE_OPTIONS } from './constants/cookie.constants';
+import {
+  ACCESS_TOKEN_KEY,
+  ACCESS_TOKEN_OPTIONS,
+  REFRESH_TOKEN_KEY,
+  REFRESH_TOKEN_OPTIONS,
+} from './constants/cookie.constants';
 import { ReturnUserDto } from '../user/dto/return-user.dto';
 import { mockUser } from '../mock/user-tests.mock';
 
@@ -73,14 +78,17 @@ describe('AuthController', () => {
 
       expect(authService.register).toHaveBeenCalledWith(dto);
 
+      expect(mockResponse.cookie).toHaveBeenCalledWith(ACCESS_TOKEN_KEY, mockTokens.accessToken, {
+        ...ACCESS_TOKEN_OPTIONS,
+        secure: false,
+      });
       expect(mockResponse.cookie).toHaveBeenCalledWith(REFRESH_TOKEN_KEY, mockTokens.refreshToken, {
-        ...BASE_COOKIE_OPTIONS,
+        ...REFRESH_TOKEN_OPTIONS,
         secure: false,
       });
 
       expect(result).toEqual({
         user: new ReturnUserDto(mockUser),
-        accessToken: mockTokens.accessToken,
       });
     });
   });
@@ -103,10 +111,14 @@ describe('AuthController', () => {
         mockTokens.refreshToken,
         expect.objectContaining({ httpOnly: true }),
       );
+      expect(mockResponse.cookie).toHaveBeenCalledWith(
+        ACCESS_TOKEN_KEY,
+        mockTokens.accessToken,
+        expect.objectContaining({ httpOnly: true }),
+      );
 
       expect(result).toEqual({
         user: new ReturnUserDto(mockUser),
-        accessToken: mockTokens.accessToken,
       });
     });
   });
@@ -123,9 +135,17 @@ describe('AuthController', () => {
       };
       mockAuthService.refreshLocalToken.mockResolvedValue(expectedResponse);
 
-      const result = await controller.refresh(mockRequest);
+      const result = await controller.refresh(mockRequest, mockResponse);
 
       expect(authService.refreshLocalToken).toHaveBeenCalledWith('old_refresh_token');
+      expect(mockResponse.cookie).toHaveBeenCalledWith(ACCESS_TOKEN_KEY, 'new_access_token', {
+        ...ACCESS_TOKEN_OPTIONS,
+        secure: false,
+      });
+      expect(mockResponse.cookie).toHaveBeenCalledWith(REFRESH_TOKEN_KEY, 'new_refresh_token', {
+        ...REFRESH_TOKEN_OPTIONS,
+        secure: false,
+      });
       expect(result).toEqual(expectedResponse);
     });
 
@@ -134,7 +154,9 @@ describe('AuthController', () => {
         cookies: {},
       } as unknown as Request;
 
-      await expect(controller.refresh(mockRequest)).rejects.toThrow(UnauthorizedException);
+      await expect(controller.refresh(mockRequest, mockResponse)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 
@@ -146,8 +168,12 @@ describe('AuthController', () => {
 
       expect(authService.logout).toHaveBeenCalledWith(userId);
 
+      expect(mockResponse.clearCookie).toHaveBeenCalledWith(ACCESS_TOKEN_KEY, {
+        ...ACCESS_TOKEN_OPTIONS,
+        secure: false,
+      });
       expect(mockResponse.clearCookie).toHaveBeenCalledWith(REFRESH_TOKEN_KEY, {
-        ...BASE_COOKIE_OPTIONS,
+        ...REFRESH_TOKEN_OPTIONS,
         secure: false,
       });
     });

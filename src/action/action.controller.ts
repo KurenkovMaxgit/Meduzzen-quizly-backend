@@ -108,7 +108,7 @@ export class ActionController {
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @Post('request/:id/:action')
-  async acceptRequest(
+  async manageRequest(
     @CurrentUser('id') adminId: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Param('action', new ParseEnumPipe(ActionDecision)) action: ActionDecision,

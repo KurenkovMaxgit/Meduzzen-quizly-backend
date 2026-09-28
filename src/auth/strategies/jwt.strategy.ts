@@ -6,6 +6,8 @@ import { AppConfiguration } from '../../config/configuration';
 import { UserService } from '../../user/user.service';
 import { User } from '../../common/entities/user.entity';
 import { JwtPayloadRequest } from '../interfaces/auth-request.interface';
+import { Request } from 'express';
+import { ACCESS_TOKEN_KEY } from '../constants/cookie.constants';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
@@ -15,7 +17,12 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   ) {
     const jwtConfig = configService.get('jwt', { infer: true })!;
     const options: StrategyOptions = {
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+        (request: Request) => {
+          return request?.cookies?.[ACCESS_TOKEN_KEY] || null;
+        },
+      ]),
       ignoreExpiration: false,
       secretOrKey: jwtConfig.accessTokenSecret!,
     };

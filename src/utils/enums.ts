@@ -45,6 +45,7 @@ export enum NotificationType {
   QUIZ_CREATED = 'quiz_created',
   SYSTEM_ALERT = 'system_alert',
   QUIZ_REMINDER = 'quiz_reminder',
+  COMPANY_ACTION = 'company_action',
 }
 
 export enum NotificationStatus {

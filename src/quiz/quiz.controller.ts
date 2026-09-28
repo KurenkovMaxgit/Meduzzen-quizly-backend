@@ -54,7 +54,7 @@ export class QuizController {
   @ApiResponse({ status: 200, description: 'Success.' })
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  @AllowedCompanyRoles([CompanyRole.OWNER, CompanyRole.ADMIN])
+  @AllowedCompanyRoles([CompanyRole.OWNER, CompanyRole.ADMIN, CompanyRole.MEMBER])
   @Get('company/:companyId/list')
   async findAll(
     @Param('companyId', ParseUUIDPipe) companyId: string,
@@ -63,7 +63,7 @@ export class QuizController {
     const { items, totalCount } = await this.quizService.findAll(companyId, query);
 
     return {
-      items: plainToInstance(PrivateReturnQuizDto, items),
+      items: plainToInstance(PublicReturnQuizDto, items),
       totalCount,
     };
   }

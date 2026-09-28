@@ -24,7 +24,7 @@ export class ReturnUserDto {
   role!: UserRole;
 
   @Expose()
-  memberships!: CompanyUser[];
+  memberships?: CompanyUser[];
 
   @Expose()
   createdAt!: Date;

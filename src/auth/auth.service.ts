@@ -63,7 +63,18 @@ export class AuthService {
   async validateUserPassword(email: string, password: string) {
     const user = await this.userService.findOneBy(
       { email },
-      { select: { id: true, email: true, passwordHash: true } },
+      {
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          createdAt: true,
+          updatedAt: true,
+          passwordHash: true,
+        },
+      },
     );
 
     if (!user) {
@@ -94,7 +105,7 @@ export class AuthService {
     }
     const tokens = await this.getTokens(user.id, user.email);
     await this.updateRefreshTokenHash(user.id, tokens.refreshToken);
-    return tokens.accessToken;
+    return this.getTokens(user.id, user.email);
   }
 
   async logout(id: string): Promise<void> {
