@@ -226,6 +226,38 @@ describe('QuizService', () => {
       });
       expect(result.title).toEqual('Updated Quiz');
     });
+
+    it('should reject question IDs that do not belong to this quiz', async () => {
+      mockQuizRepository.findOne.mockResolvedValueOnce(mockQuiz);
+      const data = {
+        ...updateDto,
+        questions: [{ ...updateDto.questions[0], id: 'question-from-another-quiz' }],
+      };
+
+      await expect(service.updateBy({ id: mockQuiz.id }, data)).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(repository.save).not.toHaveBeenCalled();
+    });
+
+    it('should reject answer IDs that do not belong to their question', async () => {
+      mockQuizRepository.findOne.mockResolvedValueOnce(mockQuiz);
+      const data = {
+        ...updateDto,
+        questions: [
+          {
+            ...updateDto.questions[0],
+            id: 'q1',
+            answers: [{ id: 'a3', correctness: AnswerCorrectness.CORRECT }],
+          },
+        ],
+      };
+
+      await expect(service.updateBy({ id: mockQuiz.id }, data)).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(repository.save).not.toHaveBeenCalled();
+    });
   });
 
   describe('deleteBy', () => {

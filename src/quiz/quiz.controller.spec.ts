@@ -5,7 +5,7 @@ import { JwtAuthGuard } from '../auth/guards/auth-jwt.guard';
 import { CompanyRolesGuard } from '../company/guards/company-role.guard';
 import { mockQuiz, mockQuizService } from '../mock/quiz-tests.mock';
 import { mockCompany } from '../mock/company-tests.mock';
-import { PrivateReturnQuizDto } from './dto/return-quiz.dto';
+import { PrivateReturnQuizDto, PublicReturnQuizDto } from './dto/return-quiz.dto';
 
 describe('QuizController', () => {
   let controller: QuizController;
@@ -50,13 +50,13 @@ describe('QuizController', () => {
   });
 
   describe('findAll', () => {
-    it('should return paginated quizzes mapped to PrivateReturnQuizDto', async () => {
+    it('should return paginated quizzes mapped to PublicReturnQuizDto', async () => {
       const query = { take: 10, skip: 0 };
 
       const result = await controller.findAll(mockCompany.id, query as any);
 
       expect(service.findAll).toHaveBeenCalledWith(mockCompany.id, query);
-      expect(result.items[0]).toBeInstanceOf(PrivateReturnQuizDto);
+      expect(result.items[0]).toBeInstanceOf(PublicReturnQuizDto);
       expect(result.totalCount).toBe(1);
       expect(result.items[0].id).toEqual(mockQuiz.id);
     });
