@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ActionService } from './action.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Action } from '../common/entities/action.entity';
@@ -35,6 +36,10 @@ describe('ActionService', () => {
         {
           provide: Logger,
           useValue: mockLogger,
+        },
+        {
+          provide: EventEmitter2,
+          useValue: { emitAsync: jest.fn().mockResolvedValue([]) },
         },
       ],
     }).compile();
