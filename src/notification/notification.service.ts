@@ -53,8 +53,7 @@ export class NotificationService {
     });
   }
 
-  @OnEvent('notification.create_for_users')
-  async handleUsersNotification(payload: {
+  async createForUsers(payload: {
     userIds: string[];
     companyId: string;
     message: string;

@@ -5,7 +5,6 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOneOptions, In, DataSource, FindOptionsWhere } from 'typeorm';
 import { Action } from '../common/entities/action.entity';
@@ -16,6 +15,7 @@ import { FindAllActionsDto, FindActionDto } from './dto/find-action.dto';
 import { ActionDecision, ActionStatus, ActionType, CompanyRole } from '../utils/enums';
 import { CompanyService } from '../company/company.service';
 import { User } from '../common/entities/user.entity';
+import { NotificationService } from '../notification/notification.service';
 
 const ALLOWED_ACTION_RELATIONS = ['createdBy', 'subject', 'company'];
 
@@ -27,7 +27,7 @@ export class ActionService {
     private readonly companyService: CompanyService,
     private readonly dataSource: DataSource,
     private readonly logger: Logger,
-    private readonly eventEmitter: EventEmitter2,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async create(createdBy: string, companyId: string, data: CreateActionDto): Promise<Action> {
@@ -227,7 +227,7 @@ export class ActionService {
     if (userIds.length === 0) return;
 
     try {
-      await this.eventEmitter.emitAsync('notification.create_for_users', {
+      await this.notificationService.createForUsers({
         userIds,
         companyId,
         message,

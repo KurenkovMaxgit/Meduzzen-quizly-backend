@@ -1,5 +1,4 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ActionService } from './action.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Action } from '../common/entities/action.entity';
@@ -11,6 +10,7 @@ import { mockActionRepository, mockQueryBuilder, mockInvite } from '../mock/acti
 import { mockUser } from '../mock/user-tests.mock';
 import { mockCompany, mockCompanyService } from '../mock/company-tests.mock';
 import { mockDataSource, mockEntityManager, mockLogger } from '../mock/common-tests.mock';
+import { NotificationService } from '../notification/notification.service';
 
 describe('ActionService', () => {
   let service: ActionService;
@@ -38,8 +38,8 @@ describe('ActionService', () => {
           useValue: mockLogger,
         },
         {
-          provide: EventEmitter2,
-          useValue: { emitAsync: jest.fn().mockResolvedValue([]) },
+          provide: NotificationService,
+          useValue: { createForUsers: jest.fn().mockResolvedValue(undefined) },
         },
       ],
     }).compile();
