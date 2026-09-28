@@ -20,6 +20,9 @@ export class PublicReturnQuizDto {
   description?: string;
 
   @Expose()
+  completionFrequency!: number;
+
+  @Expose()
   @Type(() => PublicReturnQuestionDto)
   questions?: PublicReturnQuestionDto[];
 
@@ -44,6 +47,9 @@ export class PrivateReturnQuizDto {
 
   @Expose()
   description?: string;
+
+  @Expose()
+  completionFrequency!: number;
 
   @Expose()
   @Type(() => PrivateReturnQuestionDto)

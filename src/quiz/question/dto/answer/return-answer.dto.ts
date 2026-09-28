@@ -13,8 +13,6 @@ export class PublicReturnAnswerDto {
   @Expose()
   content!: string;
 
-  correctness!: AnswerCorrectness;
-
   @Expose()
   createdAt!: Date;
 
